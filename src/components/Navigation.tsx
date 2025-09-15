@@ -1,14 +1,16 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { BookOpen, Home, BarChart3 } from "lucide-react";
+import { BookOpen, Home, Play, BarChart3, User } from "lucide-react";
 
 const Navigation = () => {
   const location = useLocation();
 
   const navItems = [
     { name: "Home", path: "/", icon: Home },
-    { name: "Learning Path", path: "/learning-path", icon: BookOpen },
-    { name: "Dashboard", path: "/dashboard", icon: BarChart3 },
+    { name: "Courses", path: "/courses", icon: BookOpen },
+    { name: "Video", path: "/video", icon: Play },
+    { name: "Progress", path: "/progress", icon: BarChart3 },
+    { name: "Profile", path: "/profile", icon: User },
   ];
 
   return (

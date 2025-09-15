@@ -37,13 +37,26 @@ const Home = () => {
       return;
     }
 
-    toast({
-      title: "Learning Path Created!",
-      description: `Starting ${selectedLevel} level learning for: ${searchTopic}`,
-    });
-    
-    navigate("/learning-path");
+    // Navigate to courses page with search params
+    navigate(`/courses?topic=${encodeURIComponent(searchTopic)}&goal=${selectedLevel}`);
   };
+
+  const featuredCourses = [
+    { name: "Python", description: "Learn programming fundamentals", icon: "🐍" },
+    { name: "Product Management", description: "Build and ship great products", icon: "📊" },
+    { name: "Machine Learning", description: "AI and data science basics", icon: "🤖" },
+    { name: "C++", description: "Systems programming mastery", icon: "⚡" },
+    { name: "AI", description: "Artificial intelligence concepts", icon: "🧠" },
+  ];
+
+  const exploreCategories = [
+    { name: "Data Science", description: "Analytics & insights", icon: "📈" },
+    { name: "Business", description: "Strategy & operations", icon: "💼" },
+    { name: "Computer Science", description: "Programming & algorithms", icon: "💻" },
+    { name: "Personal Development", description: "Skills & growth", icon: "🌟" },
+    { name: "Arts & Humanities", description: "Creative & cultural studies", icon: "🎨" },
+    { name: "Language Learning", description: "Communication skills", icon: "🗣️" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-secondary">
@@ -117,6 +130,66 @@ const Home = () => {
                   </Button>
                 </CardContent>
               </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Courses Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-12 text-center">
+              <h2 className="mb-4 text-3xl font-bold">Featured Courses</h2>
+              <p className="text-lg text-muted-foreground">
+                Start your learning journey with these popular topics
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-5">
+              {featuredCourses.map((course) => (
+                <Card
+                  key={course.name}
+                  className="cursor-pointer border-0 shadow-card hover:shadow-elevation transition-smooth hover:scale-105"
+                  onClick={() => navigate(`/courses?topic=${encodeURIComponent(course.name)}&goal=beginner`)}
+                >
+                  <CardContent className="p-6 text-center">
+                    <div className="mb-3 text-3xl">{course.icon}</div>
+                    <h3 className="mb-2 font-semibold">{course.name}</h3>
+                    <p className="text-sm text-muted-foreground">{course.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Explore Courses Section */}
+      <section className="py-16 bg-gradient-secondary">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-12 text-center">
+              <h2 className="mb-4 text-3xl font-bold">Explore Categories</h2>
+              <p className="text-lg text-muted-foreground">
+                Discover courses across various fields of study
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {exploreCategories.map((category) => (
+                <Card
+                  key={category.name}
+                  className="cursor-pointer border-0 shadow-card hover:shadow-elevation transition-smooth hover:scale-105"
+                  onClick={() => navigate(`/courses?topic=${encodeURIComponent(category.name)}&goal=beginner`)}
+                >
+                  <CardContent className="p-6 text-center">
+                    <div className="mb-3 text-3xl">{category.icon}</div>
+                    <h3 className="mb-2 text-lg font-semibold">{category.name}</h3>
+                    <p className="text-sm text-muted-foreground">{category.description}</p>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         </div>
