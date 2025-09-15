@@ -24,14 +24,13 @@ interface FetchVideosResponse {
 
 export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<FetchVideosResponse> => {
   try {
-    const webhookUrl = `https://dhanwai.app.n8n.cloud/webhook-test/youtube-learning?topic=${encodeURIComponent(topic)}&goal=${encodeURIComponent(goal)}`;
-    
-    const response = await fetch(webhookUrl, {
-      method: 'GET',
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-videos`, {
+      method: 'POST',
       headers: {
-        'x-api-key': process.env.WEBHOOK_KEY || '',
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
+      body: JSON.stringify({ topic, goal }),
     });
 
     if (!response.ok) {

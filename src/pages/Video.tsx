@@ -38,6 +38,14 @@ const Video = () => {
     }));
   };
 
+  const isAnswerCorrect = (questionIndex: number, answerIndex: number) => {
+    return quiz && quiz[questionIndex] && quiz[questionIndex].correct === answerIndex;
+  };
+
+  const isAnswerSelected = (questionIndex: number, answerIndex: number) => {
+    return selectedAnswers[questionIndex] === answerIndex;
+  };
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
       case "beginner":
@@ -139,8 +147,10 @@ const Video = () => {
                             key={optionIndex}
                             onClick={() => handleAnswerSelect(questionIndex, optionIndex)}
                             className={`w-full text-left p-3 rounded-lg border transition-smooth ${
-                              selectedAnswers[questionIndex] === optionIndex
-                                ? "border-primary bg-primary/5 text-primary"
+                              isAnswerSelected(questionIndex, optionIndex)
+                                ? isAnswerCorrect(questionIndex, optionIndex)
+                                  ? "border-success bg-success/10 text-success"
+                                  : "border-destructive bg-destructive/10 text-destructive"
                                 : "border-border hover:border-primary/50 hover:bg-muted/50"
                             }`}
                           >
