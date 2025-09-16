@@ -7,6 +7,13 @@ import { Play, Clock, Star, Loader2 } from "lucide-react";
 import { fetchVideos, VideoData } from "@/services/videoService";
 import { toast } from "@/hooks/use-toast";
 
+// 🔑 helper to sanitize YouTube ID
+function extractVideoId(idOrUrl: string | undefined) {
+  if (!idOrUrl) return "";
+  const match = idOrUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+  return match ? match[1] : idOrUrl;
+}
+
 const Courses = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -45,8 +52,11 @@ const Courses = () => {
     loadVideos();
   }, [topic, goal, navigate]);
 
+  // 🔑 use sanitized ID here
   const handleWatchVideo = (video: VideoData) => {
-    navigate(`/video/${video.id}`, {
+    const cleanId = extractVideoId(video.id);
+
+    navigate(`/video/${cleanId}`, {
       state: {
         video,
         summary: video.summary,
