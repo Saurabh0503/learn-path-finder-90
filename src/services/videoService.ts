@@ -1,5 +1,5 @@
 // Helper function to extract valid YouTube video ID
-function extractVideoId(idOrUrl: string | undefined): string {
+function extractVideoId(idOrUrl: string | undefined, thumbnail?: string): string {
   if (!idOrUrl) return "";
   
   // If it's already an 11-character YouTube ID, return it
@@ -8,29 +8,16 @@ function extractVideoId(idOrUrl: string | undefined): string {
   }
   
   // Try to extract from YouTube URL patterns
-  const urlPatterns = [
-    /(?:v=|\/)([0-9A-Za-z_-]{11})/, // Standard YouTube URLs
-    /youtu\.be\/([0-9A-Za-z_-]{11})/, // Shortened URLs
-    /embed\/([0-9A-Za-z_-]{11})/, // Embed URLs
-  ];
+  const match = idOrUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+  if (match) return match[1];
   
-  for (const pattern of urlPatterns) {
-    const match = idOrUrl.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
+  // Fallback: extract from thumbnail (i.ytimg.com/vi/<id>/...)
+  if (thumbnail) {
+    const thumbMatch = thumbnail.match(/\/vi\/([0-9A-Za-z_-]{11})\//); 
+    if (thumbMatch) return thumbMatch[1];
   }
   
   return "";
-}
-
-// Helper to extract YouTube ID from thumbnail URL
-function extractVideoIdFromThumbnail(thumbnail: string): string {
-  if (!thumbnail) return "";
-  
-  // YouTube thumbnail patterns: https://img.youtube.com/vi/{ID}/... or https://i.ytimg.com/vi/{ID}/...
-  const match = thumbnail.match(/\/vi\/([0-9A-Za-z_-]{11})\//); 
-  return match ? match[1] : "";
 }
 
 interface VideoData {
@@ -86,29 +73,14 @@ export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<F
     
     // Normalize and filter videos to ensure valid YouTube IDs
     const normalizedVideos = rawVideos
-      .map((video: any) => {
-        // Try to extract valid YouTube ID from multiple sources
-        let cleanId = extractVideoId(video.id);
-        
-        // If video.id doesn't give us a valid ID, try the thumbnail
-        if (!cleanId && video.thumbnail) {
-          cleanId = extractVideoIdFromThumbnail(video.thumbnail);
-        }
-        
-        // If we still don't have a valid ID, skip this video
-        if (!cleanId) {
-          console.warn(`⚠️ Skipping video with invalid ID: ${video.id || 'unknown'}`);
-          return null;
-        }
-        
-        console.log(`✅ Normalized videoId: ${cleanId} (from: ${video.id})`);
-        
-        return {
-          ...video,
-          id: cleanId, // Always use the normalized YouTube ID
-        };
-      })
-      .filter(Boolean); // Remove null entries
+      .map((video: any) => ({
+        ...video,
+        id: extractVideoId(video.id, video.thumbnail),
+      }))
+      .filter(v => v.id); // drop invalid ones
+    
+    console.log(`✅ Normalized ${normalizedVideos.length}/${rawVideos.length} videos with valid YouTube IDs`);
+    normalizedVideos.forEach(v => console.log(`🎥 Video ID: ${v.id} - ${v.title}`));
     
     return { videos: normalizedVideos };
   } catch (error) {
