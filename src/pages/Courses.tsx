@@ -3,11 +3,12 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Clock, Star, Loader2 } from "lucide-react";
+import { Play, Clock, Star, Loader2, RefreshCcw } from "lucide-react";
 import { fetchVideos, VideoData } from "@/services/videoService";
 import { toast } from "@/hooks/use-toast";
+import { useVideoCache } from "@/context/VideoCacheContext";
 
-// 🔑 Helper to extract YouTube ID from thumbnail URL
+// 🔑 Helper to extract YouTube ID from thumbnail URL (keep if you need it)
 function extractYoutubeIdFromThumbnail(thumbnail: string) {
   const match = thumbnail.match(/vi\/([^/]+)\//);
   return match ? match[1] : "";
@@ -19,8 +20,12 @@ const Courses = () => {
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const { cache, setCache, clearCache } = useVideoCache();
+
   const topic = searchParams.get("topic");
   const goal = searchParams.get("goal");
+
+  const cacheKey = `${topic ?? ""}::${goal ?? ""}`;
 
   // Generate a courseId based on topic and goal for progress tracking
   const courseId =
@@ -35,10 +40,19 @@ const Courses = () => {
         return;
       }
 
+      // 1) Use cache if present
+      if (cache[cacheKey]) {
+        setVideos(cache[cacheKey]);
+        return;
+      }
+
+      // 2) Otherwise fetch and cache
       setLoading(true);
       try {
         const response = await fetchVideos({ topic, goal });
-        setVideos(response.videos);
+        const resultVideos = response.videos ?? [];
+        setVideos(resultVideos);
+        setCache(cacheKey, resultVideos);
       } catch (error) {
         toast({
           title: "Error Loading Courses",
@@ -52,19 +66,39 @@ const Courses = () => {
     };
 
     loadVideos();
-  }, [topic, goal, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topic, goal, navigate, cacheKey]); // we intentionally read fresh cache via hook values inside
 
-  // ✅ Use real YouTube ID from thumbnail + debug log
+  // Force-refresh helper (clears cache for this key and reloads)
+  const handleRefresh = async () => {
+    clearCache(cacheKey);
+    setLoading(true);
+    try {
+      const response = await fetchVideos({ topic: topic!, goal: goal! });
+      const resultVideos = response.videos ?? [];
+      setVideos(resultVideos);
+      setCache(cacheKey, resultVideos);
+    } catch (error) {
+      toast({
+        title: "Error Refreshing",
+        description: "Could not refresh videos.",
+        variant: "destructive",
+      });
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Use real YouTube ID from thumbnail when navigating to video page
   const handleWatchVideo = (video: VideoData) => {
     const youtubeId = extractYoutubeIdFromThumbnail(video.thumbnail);
-    console.log("🎥 Extracted YouTube ID:", youtubeId, "from", video.thumbnail);
-
     navigate(`/video/${youtubeId}`, {
       state: {
         video,
         summary: video.summary,
         quiz: video.quiz,
-        courseId: courseId,
+        courseId,
       },
     });
   };
@@ -89,12 +123,8 @@ const Courses = () => {
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <h2 className="text-xl font-semibold mb-2">
-                Loading Learning Content
-              </h2>
-              <p className="text-muted-foreground">
-                Curating the best videos for {topic}...
-              </p>
+              <h2 className="text-xl font-semibold mb-2">Loading Learning Content</h2>
+              <p className="text-muted-foreground">Curating the best videos for {topic}...</p>
             </div>
           </div>
         </div>
@@ -106,23 +136,28 @@ const Courses = () => {
     <div className="min-h-screen bg-gradient-secondary">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="mb-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/")}
-              className="mb-4"
-            >
-              ← Back to Home
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <div className="mb-4">
+              <Button variant="ghost" onClick={() => navigate("/")} className="mb-4">
+                ← Back to Home
+              </Button>
+            </div>
+            <h1 className="text-4xl font-bold mb-2">{topic} Courses</h1>
+            <p className="text-lg text-muted-foreground mb-4">
+              {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
+            </p>
+            <Badge variant="outline" className="text-sm">
+              {videos.length} course{videos.length !== 1 ? "s" : ""} found
+            </Badge>
+          </div>
+
+          {/* refresh button */}
+          <div>
+            <Button onClick={handleRefresh} variant="outline" className="flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4" /> Refresh
             </Button>
           </div>
-          <h1 className="text-4xl font-bold mb-2">{topic} Courses</h1>
-          <p className="text-lg text-muted-foreground mb-4">
-            {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
-          </p>
-          <Badge variant="outline" className="text-sm">
-            {videos.length} course{videos.length !== 1 ? "s" : ""} found
-          </Badge>
         </div>
 
         {/* Videos Grid */}
@@ -147,11 +182,7 @@ const Courses = () => {
                     className="w-full h-48 object-cover group-hover:scale-105 transition-smooth"
                   />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-smooth flex items-center justify-center">
-                    <Button
-                      size="sm"
-                      className="bg-background/90 text-foreground hover:bg-background"
-                      onClick={() => handleWatchVideo(video)}
-                    >
+                    <Button size="sm" className="bg-background/90 text-foreground hover:bg-background" onClick={() => handleWatchVideo(video)}>
                       <Play className="h-4 w-4 mr-2" />
                       Watch Now
                     </Button>
@@ -181,10 +212,7 @@ const Courses = () => {
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => handleWatchVideo(video)}
-                    className="w-full bg-gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-bounce"
-                  >
+                  <Button onClick={() => handleWatchVideo(video)} className="w-full bg-gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-bounce">
                     <Play className="h-4 w-4 mr-2" />
                     Start Learning
                   </Button>
