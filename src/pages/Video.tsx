@@ -8,16 +8,8 @@ import { VideoData } from "@/services/videoService";
 import { markVideoComplete, saveQuizScore } from "@/services/progressService";
 import { useToast } from "@/components/ui/use-toast";
 
-function extractVideoId(idOrUrl: string | undefined) {
-  if (!idOrUrl) return "";
-  const match = idOrUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-  return match ? match[1] : idOrUrl;
-}
-
 const Video = () => {
-  const { videoId: rawVideoId } = useParams();
-  const videoId = extractVideoId(rawVideoId);
-
+  const { videoId } = useParams(); // ✅ already clean from Courses.tsx
   const location = useLocation();
   const navigate = useNavigate();
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
@@ -36,9 +28,7 @@ const Video = () => {
       <div className="min-h-screen bg-gradient-secondary flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Video not found</h2>
-          <Button onClick={() => navigate("/courses")}>
-            Browse Courses
-          </Button>
+          <Button onClick={() => navigate("/courses")}>Browse Courses</Button>
         </div>
       </div>
     );
@@ -47,17 +37,15 @@ const Video = () => {
   const handleAnswerSelect = (questionIndex: number, answerIndex: number) => {
     setSelectedAnswers(prev => ({
       ...prev,
-      [questionIndex]: answerIndex
+      [questionIndex]: answerIndex,
     }));
   };
 
-  const isAnswerCorrect = (questionIndex: number, answerIndex: number) => {
-    return quiz && quiz[questionIndex] && quiz[questionIndex].correct === answerIndex;
-  };
+  const isAnswerCorrect = (questionIndex: number, answerIndex: number) =>
+    quiz && quiz[questionIndex] && quiz[questionIndex].correct === answerIndex;
 
-  const isAnswerSelected = (questionIndex: number, answerIndex: number) => {
-    return selectedAnswers[questionIndex] === answerIndex;
-  };
+  const isAnswerSelected = (questionIndex: number, answerIndex: number) =>
+    selectedAnswers[questionIndex] === answerIndex;
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
@@ -74,9 +62,7 @@ const Video = () => {
 
   const calculateQuizScore = () => {
     if (!quiz || quiz.length === 0) return 0;
-    const correctAnswers = quiz.filter((question, index) =>
-      selectedAnswers[index] === question.correct
-    ).length;
+    const correctAnswers = quiz.filter((question, index) => selectedAnswers[index] === question.correct).length;
     return Math.round((correctAnswers / quiz.length) * 10);
   };
 
@@ -146,7 +132,7 @@ const Video = () => {
               </div>
             </Card>
 
-            {/* rest of your code unchanged ... */}
+            {/* ...rest of your sections unchanged */}
           </div>
         </div>
       </div>

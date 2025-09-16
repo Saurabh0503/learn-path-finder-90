@@ -113,25 +113,22 @@ const Courses = () => {
     <div className="min-h-screen bg-gradient-secondary">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="mb-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/")}
-              className="mb-4"
-            >
-              ← Back to Home
-            </Button>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <div className="mb-4">
+              <Button variant="ghost" onClick={() => navigate("/")} className="mb-4">
+                ← Back to Home
+              </Button>
+            </div>
+            <h1 className="text-4xl font-bold mb-2">{topic} Courses</h1>
+            <p className="text-lg text-muted-foreground mb-4">
+              {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
+            </p>
+            <Badge variant="outline" className="text-sm">
+              {videos.length} course{videos.length !== 1 ? "s" : ""} found
+            </Badge>
           </div>
-          <h1 className="text-4xl font-bold mb-2">
-            {topic} Courses
-          </h1>
-          <p className="text-lg text-muted-foreground mb-4">
-            {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
-          </p>
-          <Badge variant="outline" className="text-sm">
-            {videos.length} course{videos.length !== 1 ? 's' : ''} found
-          </Badge>
+
         </div>
 
         {/* Videos Grid */}
@@ -156,11 +153,7 @@ const Courses = () => {
                     className="w-full h-48 object-cover group-hover:scale-105 transition-smooth"
                   />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-smooth flex items-center justify-center">
-                    <Button
-                      size="sm"
-                      className="bg-background/90 text-foreground hover:bg-background"
-                      onClick={() => handleWatchVideo(video)}
-                    >
+                    <Button size="sm" className="bg-background/90 text-foreground hover:bg-background" onClick={() => handleWatchVideo(video)}>
                       <Play className="h-4 w-4 mr-2" />
                       Watch Now
                     </Button>
@@ -190,10 +183,7 @@ const Courses = () => {
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => handleWatchVideo(video)}
-                    className="w-full bg-gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-bounce"
-                  >
+                  <Button onClick={() => handleWatchVideo(video)} className="w-full bg-gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-bounce">
                     <Play className="h-4 w-4 mr-2" />
                     Start Learning
                   </Button>
