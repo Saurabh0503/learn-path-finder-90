@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Clock, Star, Loader2 } from "lucide-react";
 import { fetchVideos, VideoData } from "@/services/videoService";
 import { toast } from "@/hooks/use-toast";
+import { useVideoCache } from "@/contexts/VideoCacheContext";
 
 // 🔑 helper to sanitize YouTube ID
 function extractVideoId(idOrUrl: string | undefined) {
@@ -19,6 +20,7 @@ const Courses = () => {
   const navigate = useNavigate();
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(false);
+  const { getCachedVideos, setCachedVideos, clearCache } = useVideoCache();
   
   const topic = searchParams.get("topic");
   const goal = searchParams.get("goal");
@@ -26,29 +28,41 @@ const Courses = () => {
   // Generate a courseId based on topic and goal for progress tracking
   const courseId = topic && goal ? `${topic.toLowerCase().replace(/\s+/g, '-')}-${goal.toLowerCase()}` : null;
 
-  useEffect(() => {
-    const loadVideos = async () => {
-      if (!topic || !goal) {
-        navigate("/");
+  const loadVideos = async (forceRefresh = false) => {
+    if (!topic || !goal) {
+      navigate("/");
+      return;
+    }
+
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cachedVideos = getCachedVideos(topic, goal);
+      if (cachedVideos) {
+        setVideos(cachedVideos);
         return;
       }
+    }
 
-      setLoading(true);
-      try {
-        const response = await fetchVideos({ topic, goal });
-        setVideos(response.videos);
-      } catch (error) {
-        toast({
-          title: "Error Loading Courses",
-          description: "Failed to fetch learning content. Please try again.",
-          variant: "destructive",
-        });
-        console.error("Error fetching videos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
+    try {
+      const response = await fetchVideos({ topic, goal });
+      setVideos(response.videos);
+      // Cache the fetched videos
+      setCachedVideos(topic, goal, response.videos);
+    } catch (error) {
+      toast({
+        title: "Error Loading Courses",
+        description: "Failed to fetch learning content. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error fetching videos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+
+  useEffect(() => {
     loadVideos();
   }, [topic, goal, navigate]);
 
