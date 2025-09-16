@@ -125,6 +125,7 @@ const Video = () => {
           <div className="lg:col-span-2 space-y-6">
             <Card className="border-0 shadow-card overflow-hidden">
               <div className="aspect-video">
+                {console.log("🎥 Embedding videoId:", videoId, "from video object:", video)}
                 <iframe
                   src={`https://www.youtube.com/embed/${videoId}?rel=0`}
                   title={video.title}
