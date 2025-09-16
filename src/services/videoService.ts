@@ -23,22 +23,29 @@ interface FetchVideosResponse {
 }
 
 export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<FetchVideosResponse> => {
+  if (!topic) {
+    throw new Error("Topic is required");
+  }
+
+  const url = `https://dhanwai.app.n8n.cloud/webhook/youtube-learning?topic=${encodeURIComponent(topic)}&goal=${encodeURIComponent(goal || '')}`;
+
   try {
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-videos`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ topic, goal }),
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { 
+        "x-api-key": "mySecretKey123" 
+      }
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`n8n webhook failed: ${res.status} ${text}`);
     }
 
-    const data = await response.json();
-    return data;
+    const data = await res.json();
+    const videos = Array.isArray(data) ? data[0]?.videos : data.videos;
+    
+    return { videos: videos || [] };
   } catch (error) {
     console.error('Error fetching videos:', error);
     throw new Error('Failed to fetch videos from learning platform');
