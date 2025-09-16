@@ -69,20 +69,22 @@ export async function saveQuizScore(
 
 // 4A. Get Course Progress (RPC version)
 export async function getCourseProgressRPC(courseId: string) {
-  const user = await getCurrentUser();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error("Not authenticated");
 
-  const { data, error } = await supabase.rpc("get_course_progress", {
+  const { data, error: rpcError } = await supabase.rpc("get_course_progress", {
     p_user_id: user.id,
     p_course_id: courseId,
   });
 
-  if (error) throw error;
+  if (rpcError) throw rpcError;
   return data?.[0] || null; // Return first result or null
 }
 
 // 4B. Get Course Progress (client-side fallback)
 export async function getCourseProgressClient(courseId: string) {
-  const user = await getCurrentUser();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error("Not authenticated");
 
   // Fetch course videos
   const { data: videos, error: videoError } = await supabase
@@ -111,7 +113,8 @@ export async function getCourseProgressClient(courseId: string) {
 
 // 5. Get Overall Progress Stats
 export async function getOverallProgressStats() {
-  const user = await getCurrentUser();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error("Not authenticated");
 
   // Get enrolled courses count
   const { data: enrollments, error: enrollmentError } = await supabase
@@ -172,9 +175,10 @@ export async function getOverallProgressStats() {
 
 // 6. Get Enrolled Courses with Progress
 export async function getEnrolledCoursesWithProgress() {
-  const user = await getCurrentUser();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error("Not authenticated");
 
-  const { data: enrollments, error } = await supabase
+  const { data: enrollments, error: enrollmentError } = await supabase
     .from("enrollments")
     .select(`
       course_id,
@@ -187,7 +191,7 @@ export async function getEnrolledCoursesWithProgress() {
     `)
     .eq("user_id", user.id);
 
-  if (error) throw error;
+  if (enrollmentError) throw enrollmentError;
 
   // Get progress for each course
   const coursesWithProgress = await Promise.all(
