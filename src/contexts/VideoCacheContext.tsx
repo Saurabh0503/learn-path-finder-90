@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { VideoData } from '@/services/videoService';
 
 interface CacheKey {
@@ -32,8 +32,38 @@ interface VideoCacheProviderProps {
   children: ReactNode;
 }
 
+const STORAGE_KEY = 'videoCache';
+
+// Helper functions for sessionStorage
+const loadCacheFromStorage = (): Map<string, CacheEntry> => {
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return new Map(Object.entries(parsed));
+    }
+  } catch (error) {
+    console.warn('Failed to load cache from sessionStorage:', error);
+  }
+  return new Map();
+};
+
+const saveCacheToStorage = (cache: Map<string, CacheEntry>) => {
+  try {
+    const cacheObject = Object.fromEntries(cache);
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(cacheObject));
+  } catch (error) {
+    console.warn('Failed to save cache to sessionStorage:', error);
+  }
+};
+
 export const VideoCacheProvider = ({ children }: VideoCacheProviderProps) => {
-  const [cache, setCache] = useState<Map<string, CacheEntry>>(new Map());
+  const [cache, setCache] = useState<Map<string, CacheEntry>>(() => loadCacheFromStorage());
+
+  // Save to sessionStorage whenever cache changes
+  useEffect(() => {
+    saveCacheToStorage(cache);
+  }, [cache]);
 
   const getCacheKey = (topic: string, goal: string): string => {
     return `${topic.toLowerCase().trim()}-${goal.toLowerCase().trim()}`;

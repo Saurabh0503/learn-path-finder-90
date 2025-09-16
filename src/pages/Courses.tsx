@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Clock, Star, Loader2 } from "lucide-react";
+import { Play, Clock, Star, Loader2, RefreshCw } from "lucide-react";
 import { fetchVideos, VideoData } from "@/services/videoService";
 import { toast } from "@/hooks/use-toast";
 import { useVideoCache } from "@/contexts/VideoCacheContext";
@@ -62,6 +62,13 @@ const Courses = () => {
   };
 
 
+  const handleRefresh = () => {
+    if (topic && goal) {
+      clearCache(topic, goal);
+      loadVideos(true);
+    }
+  };
+
   useEffect(() => {
     loadVideos();
   }, [topic, goal, navigate]);
@@ -113,22 +120,32 @@ const Courses = () => {
     <div className="min-h-screen bg-gradient-secondary">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <div className="mb-4">
-              <Button variant="ghost" onClick={() => navigate("/")} className="mb-4">
-                ← Back to Home
-              </Button>
-            </div>
-            <h1 className="text-4xl font-bold mb-2">{topic} Courses</h1>
-            <p className="text-lg text-muted-foreground mb-4">
-              {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
-            </p>
-            <Badge variant="outline" className="text-sm">
-              {videos.length} course{videos.length !== 1 ? "s" : ""} found
-            </Badge>
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/")}
+              className="mb-4"
+            >
+              ← Back to Home
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={loading}
+              className="mb-4 flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           </div>
-
+          <h1 className="text-4xl font-bold mb-2">{topic} Courses</h1>
+          <p className="text-lg text-muted-foreground mb-4">
+            {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
+          </p>
+          <Badge variant="outline" className="text-sm">
+            {videos.length} course{videos.length !== 1 ? "s" : ""} found
+          </Badge>
         </div>
 
         {/* Videos Grid */}
