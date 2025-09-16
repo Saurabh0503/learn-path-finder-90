@@ -1,8 +1,63 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, Settings, BookOpen, Award, Mail, Calendar } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
+import { getOverallProgressStats } from "@/services/progressService";
 
 const Profile = () => {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null);
+  const [stats, setStats] = useState({
+    enrolledCourses: 0,
+    completedVideos: 0,
+    totalLearningHours: 0,
+    learningStreak: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!user) return;
+      
+      try {
+        // Fetch profile data
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error("Error fetching profile:", profileError);
+        } else {
+          setProfile(profileData);
+        }
+
+        // Fetch progress stats
+        const progressStats = await getOverallProgressStats();
+        setStats(progressStats);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-secondary flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 animate-spin mx-auto mb-4 rounded-full border-2 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-gradient-secondary">
       <div className="container mx-auto px-4 py-8">
@@ -28,7 +83,9 @@ const Profile = () => {
                 <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-primary/10 flex items-center justify-center">
                   <User className="h-12 w-12 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold mb-1">Your Name</h3>
+                <h3 className="text-xl font-semibold mb-1">
+                  {profile?.full_name || user?.email || "Anonymous User"}
+                </h3>
                 <p className="text-muted-foreground mb-4">Learning Enthusiast</p>
                 <Button variant="outline" className="w-full">
                   Edit Profile
@@ -73,19 +130,19 @@ const Profile = () => {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 rounded-lg bg-gradient-primary/5">
-                    <div className="text-2xl font-bold text-primary">0</div>
+                    <div className="text-2xl font-bold text-primary">{stats.enrolledCourses}</div>
                     <div className="text-sm text-muted-foreground">Courses</div>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-gradient-primary/5">
-                    <div className="text-2xl font-bold text-success">0h</div>
+                    <div className="text-2xl font-bold text-success">{stats.totalLearningHours}h</div>
                     <div className="text-sm text-muted-foreground">Watch Time</div>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-gradient-primary/5">
-                    <div className="text-2xl font-bold text-warning">0</div>
-                    <div className="text-sm text-muted-foreground">Certificates</div>
+                    <div className="text-2xl font-bold text-warning">{stats.completedVideos}</div>
+                    <div className="text-sm text-muted-foreground">Videos</div>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-gradient-primary/5">
-                    <div className="text-2xl font-bold text-primary">0</div>
+                    <div className="text-2xl font-bold text-primary">{stats.learningStreak}</div>
                     <div className="text-sm text-muted-foreground">Streak Days</div>
                   </div>
                 </div>
