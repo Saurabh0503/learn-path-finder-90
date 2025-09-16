@@ -54,16 +54,17 @@ const Courses = () => {
     loadVideos();
   }, [topic, goal, navigate]);
 
-  // ✅ Use real YouTube ID from thumbnail
+  // ✅ Use real YouTube ID from thumbnail + debug log
   const handleWatchVideo = (video: VideoData) => {
     const youtubeId = extractYoutubeIdFromThumbnail(video.thumbnail);
+    console.log("🎥 Extracted YouTube ID:", youtubeId, "from", video.thumbnail);
 
     navigate(`/video/${youtubeId}`, {
       state: {
         video,
         summary: video.summary,
         quiz: video.quiz,
-        courseId: courseId, // for progress tracking
+        courseId: courseId,
       },
     });
   };
@@ -198,4 +199,3 @@ const Courses = () => {
 };
 
 export default Courses;
-
