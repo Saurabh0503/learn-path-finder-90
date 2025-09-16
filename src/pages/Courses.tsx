@@ -7,11 +7,10 @@ import { Play, Clock, Star, Loader2 } from "lucide-react";
 import { fetchVideos, VideoData } from "@/services/videoService";
 import { toast } from "@/hooks/use-toast";
 
-// 🔑 helper to sanitize YouTube ID
-function extractVideoId(idOrUrl: string | undefined) {
-  if (!idOrUrl) return "";
-  const match = idOrUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-  return match ? match[1] : idOrUrl;
+// 🔑 Helper to extract YouTube ID from thumbnail URL
+function extractYoutubeIdFromThumbnail(thumbnail: string) {
+  const match = thumbnail.match(/vi\/([^/]+)\//);
+  return match ? match[1] : "";
 }
 
 const Courses = () => {
@@ -19,12 +18,15 @@ const Courses = () => {
   const navigate = useNavigate();
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   const topic = searchParams.get("topic");
   const goal = searchParams.get("goal");
-  
+
   // Generate a courseId based on topic and goal for progress tracking
-  const courseId = topic && goal ? `${topic.toLowerCase().replace(/\s+/g, '-')}-${goal.toLowerCase()}` : null;
+  const courseId =
+    topic && goal
+      ? `${topic.toLowerCase().replace(/\s+/g, "-")}-${goal.toLowerCase()}`
+      : null;
 
   useEffect(() => {
     const loadVideos = async () => {
@@ -52,16 +54,16 @@ const Courses = () => {
     loadVideos();
   }, [topic, goal, navigate]);
 
-  // 🔑 use sanitized ID here
+  // ✅ Use real YouTube ID from thumbnail
   const handleWatchVideo = (video: VideoData) => {
-    const cleanId = extractVideoId(video.id);
+    const youtubeId = extractYoutubeIdFromThumbnail(video.thumbnail);
 
-    navigate(`/video/${cleanId}`, {
+    navigate(`/video/${youtubeId}`, {
       state: {
         video,
         summary: video.summary,
         quiz: video.quiz,
-        courseId: courseId, // Pass courseId for progress tracking
+        courseId: courseId, // for progress tracking
       },
     });
   };
@@ -86,8 +88,12 @@ const Courses = () => {
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <h2 className="text-xl font-semibold mb-2">Loading Learning Content</h2>
-              <p className="text-muted-foreground">Curating the best videos for {topic}...</p>
+              <h2 className="text-xl font-semibold mb-2">
+                Loading Learning Content
+              </h2>
+              <p className="text-muted-foreground">
+                Curating the best videos for {topic}...
+              </p>
             </div>
           </div>
         </div>
@@ -109,14 +115,12 @@ const Courses = () => {
               ← Back to Home
             </Button>
           </div>
-          <h1 className="text-4xl font-bold mb-2">
-            {topic} Courses
-          </h1>
+          <h1 className="text-4xl font-bold mb-2">{topic} Courses</h1>
           <p className="text-lg text-muted-foreground mb-4">
             {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
           </p>
           <Badge variant="outline" className="text-sm">
-            {videos.length} course{videos.length !== 1 ? 's' : ''} found
+            {videos.length} course{videos.length !== 1 ? "s" : ""} found
           </Badge>
         </div>
 
@@ -194,3 +198,4 @@ const Courses = () => {
 };
 
 export default Courses;
+
