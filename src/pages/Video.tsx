@@ -8,43 +8,8 @@ import { VideoData } from "@/services/videoService";
 import { markVideoComplete, saveQuizScore } from "@/services/progressService";
 import { useToast } from "@/components/ui/use-toast";
 
-// Helper function to extract valid YouTube video ID
-function extractVideoId(idOrUrl: string | undefined): string {
-  if (!idOrUrl) return "";
-  
-  // If it's already an 11-character YouTube ID, return it
-  if (/^[0-9A-Za-z_-]{11}$/.test(idOrUrl)) {
-    return idOrUrl;
-  }
-  
-  // Try to extract from YouTube URL patterns
-  const urlPatterns = [
-    /(?:v=|\/)([0-9A-Za-z_-]{11})/, // Standard YouTube URLs
-    /youtu\.be\/([0-9A-Za-z_-]{11})/, // Shortened URLs
-    /embed\/([0-9A-Za-z_-]{11})/, // Embed URLs
-  ];
-  
-  for (const pattern of urlPatterns) {
-    const match = idOrUrl.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
-  }
-  
-  return "";
-}
-
-// Helper to extract YouTube ID from thumbnail URL
-function extractVideoIdFromThumbnail(thumbnail: string): string {
-  if (!thumbnail) return "";
-  
-  // YouTube thumbnail patterns: https://img.youtube.com/vi/{ID}/...
-  const match = thumbnail.match(/vi\/([0-9A-Za-z_-]{11})\//); 
-  return match ? match[1] : "";
-}
-
 const Video = () => {
-  const { videoId: rawVideoId } = useParams();
+  const { videoId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
@@ -58,16 +23,8 @@ const Video = () => {
   const quiz = location.state?.quiz;
   const courseId = location.state?.courseId;
   
-  // Extract clean YouTube video ID from multiple sources
-  let cleanVideoId = extractVideoId(rawVideoId);
-  
-  // If URL param doesn't give us a valid ID, try the video object
-  if (!cleanVideoId && video) {
-    cleanVideoId = extractVideoId(video.id) || extractVideoIdFromThumbnail(video.thumbnail);
-  }
-  
-  // Debug log to confirm the video ID
-  console.log("🎥 Embedding videoId:", cleanVideoId);
+  // videoId is now guaranteed to be a clean YouTube ID from videoService
+  console.log("🎥 Embedding videoId:", videoId);
 
   if (!video) {
     return (
@@ -168,22 +125,13 @@ const Video = () => {
           <div className="lg:col-span-2 space-y-6">
             <Card className="border-0 shadow-card overflow-hidden">
               <div className="aspect-video">
-                {cleanVideoId ? (
-                  <iframe
-                    src={`https://www.youtube.com/embed/${cleanVideoId}?rel=0`}
-                    title={video.title}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <div className="text-center">
-                      <p className="text-muted-foreground mb-2">Invalid video ID</p>
-                      <p className="text-sm text-muted-foreground">Unable to load video content</p>
-                    </div>
-                  </div>
-                )}
+                <iframe
+                  src={`https://www.youtube.com/embed/${videoId}?rel=0`}
+                  title={video.title}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
               </div>
             </Card>
 
