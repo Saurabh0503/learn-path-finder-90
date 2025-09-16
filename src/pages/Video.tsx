@@ -6,17 +6,23 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, CheckCircle, Star, MessageCircle, BookOpen } from "lucide-react";
 import { VideoData } from "@/services/videoService";
+import { markVideoComplete, saveQuizScore } from "@/services/progressService";
+import { useToast } from "@/components/ui/use-toast";
 
 const Video = () => {
   const { videoId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [completingVideo, setCompletingVideo] = useState(false);
+  const { toast } = useToast();
 
   // Get video data from location state
   const video = location.state?.video as VideoData;
   const summary = location.state?.summary;
   const quiz = location.state?.quiz;
+  const courseId = location.state?.courseId; // We'll need to pass this from the Courses page
 
   if (!video) {
     return (
@@ -56,6 +62,61 @@ const Video = () => {
         return "bg-destructive/10 text-destructive border-destructive/20";
       default:
         return "bg-muted/10 text-muted-foreground border-muted/20";
+    }
+  };
+
+  const calculateQuizScore = () => {
+    if (!quiz || quiz.length === 0) return 0;
+    
+    const correctAnswers = quiz.filter((question, index) => 
+      selectedAnswers[index] === question.correct
+    ).length;
+    
+    return Math.round((correctAnswers / quiz.length) * 10); // Score out of 10
+  };
+
+  const handleMarkComplete = async () => {
+    if (!video?.id || !courseId) {
+      toast({
+        title: "Error",
+        description: "Missing video or course information",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCompletingVideo(true);
+    
+    try {
+      // Mark video as complete
+      await markVideoComplete(video.id, courseId);
+      
+      // Save quiz score if quiz exists and has been attempted
+      if (quiz && Object.keys(selectedAnswers).length > 0) {
+        const score = calculateQuizScore();
+        await saveQuizScore(video.id, courseId, score);
+        
+        toast({
+          title: "Video Completed!",
+          description: `Quiz score: ${score}/10. Great job!`,
+        });
+      } else {
+        toast({
+          title: "Video Completed!",
+          description: "Keep up the great learning!",
+        });
+      }
+      
+      setIsCompleted(true);
+    } catch (error) {
+      console.error('Error marking video complete:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark video as complete. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCompletingVideo(false);
     }
   };
 
@@ -181,9 +242,28 @@ const Video = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Button className="w-full bg-gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-bounce">
-                  Mark as Completed
-                </Button>
+                {isCompleted ? (
+                  <Button 
+                    disabled 
+                    className="w-full bg-success/20 text-success border border-success/20"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Completed!
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleMarkComplete}
+                    disabled={completingVideo}
+                    className="w-full bg-gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-bounce"
+                  >
+                    {completingVideo ? "Marking Complete..." : "Mark as Completed"}
+                  </Button>
+                )}
+                {quiz && Object.keys(selectedAnswers).length > 0 && !isCompleted && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Quiz score will be saved: {calculateQuizScore()}/10
+                  </p>
+                )}
               </CardContent>
             </Card>
 

@@ -15,6 +15,9 @@ const Courses = () => {
   
   const topic = searchParams.get("topic");
   const goal = searchParams.get("goal");
+  
+  // Generate a courseId based on topic and goal for progress tracking
+  const courseId = topic && goal ? `${topic.toLowerCase().replace(/\s+/g, '-')}-${goal.toLowerCase()}` : null;
 
   useEffect(() => {
     const loadVideos = async () => {
@@ -48,6 +51,7 @@ const Courses = () => {
         video,
         summary: video.summary,
         quiz: video.quiz,
+        courseId: courseId, // Pass courseId for progress tracking
       },
     });
   };
