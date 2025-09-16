@@ -18,6 +18,10 @@ const Video = () => {
   const { videoId: rawVideoId } = useParams();
   const videoId = extractVideoId(rawVideoId);
 
+  // 🔎 Debug logs
+  console.log("🎥 Raw videoId:", rawVideoId);
+  console.log("✅ Clean videoId:", videoId);
+
   const location = useLocation();
   const navigate = useNavigate();
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
