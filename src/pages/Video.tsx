@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, Star, MessageCircle, BookOpen } from "lucide-react";
+import { ArrowLeft, CheckCircle, Star, MessageCircle, BookOpen, Play, Lock } from "lucide-react";
 import { VideoData } from "@/services/videoService";
 import { markVideoComplete, saveQuizScore } from "@/services/progressService";
+import { markVideoCompleted, getQuizzesByVideo, isVideoCompleted, Quiz } from "@/lib/api";
+import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/use-toast";
 
 const Video = () => {
@@ -15,6 +17,9 @@ const Video = () => {
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
   const [isCompleted, setIsCompleted] = useState(false);
   const [completingVideo, setCompletingVideo] = useState(false);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const { toast } = useToast();
 
   // Get video data from location state
@@ -25,6 +30,51 @@ const Video = () => {
   
   // videoId is now guaranteed to be a clean YouTube ID from videoService
   console.log("🎥 Embedding videoId:", videoId);
+
+  // Construct video URL from video ID
+  const videoUrl = video?.id ? `https://www.youtube.com/watch?v=${video.id}` : '';
+
+  // Get current user and check completion status
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+      
+      if (user && videoUrl) {
+        const completed = await isVideoCompleted(user.id, videoUrl);
+        setIsCompleted(completed);
+        
+        // If already completed, load quizzes
+        if (completed) {
+          await loadQuizzes();
+        }
+      }
+    };
+    
+    getCurrentUser();
+  }, [videoUrl]);
+
+  // Load quizzes for the video
+  const loadQuizzes = async () => {
+    if (!videoUrl) return;
+    
+    setLoadingQuizzes(true);
+    try {
+      const searchTerm = location.state?.searchTerm;
+      const learningGoal = location.state?.learningGoal;
+      const fetchedQuizzes = await getQuizzesByVideo(videoUrl, searchTerm, learningGoal);
+      setQuizzes(fetchedQuizzes);
+    } catch (error) {
+      console.error('Error loading quizzes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load quizzes. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
 
   if (!video) {
     return (
@@ -70,10 +120,10 @@ const Video = () => {
   };
 
   const handleMarkComplete = async () => {
-    if (!video?.id || !courseId) {
+    if (!currentUser || !videoUrl) {
       toast({
         title: "Error",
-        description: "Missing video or course information",
+        description: "Missing user or video information",
         variant: "destructive",
       });
       return;
@@ -82,23 +132,28 @@ const Video = () => {
     setCompletingVideo(true);
 
     try {
-      await markVideoComplete(video.id, courseId);
+      // Mark video as completed in the progress table
+      await markVideoCompleted(currentUser.id, videoUrl);
 
-      if (quiz && Object.keys(selectedAnswers).length > 0) {
-        const score = calculateQuizScore();
-        await saveQuizScore(video.id, courseId, score);
-        toast({
-          title: "Video Completed!",
-          description: `Quiz score: ${score}/10. Great job!`,
-        });
-      } else {
-        toast({
-          title: "Video Completed!",
-          description: "Keep up the great learning!",
-        });
+      // Also mark in the existing user_progress table if courseId exists
+      if (video?.id && courseId) {
+        await markVideoComplete(video.id, courseId);
+        
+        if (quiz && Object.keys(selectedAnswers).length > 0) {
+          const score = calculateQuizScore();
+          await saveQuizScore(video.id, courseId, score);
+        }
       }
 
+      toast({
+        title: "Video Completed! ✅",
+        description: "Quizzes are now unlocked for this video.",
+      });
+
       setIsCompleted(true);
+      
+      // Load quizzes after marking as complete
+      await loadQuizzes();
     } catch (error) {
       console.error("Error marking video complete:", error);
       toast({
@@ -136,7 +191,121 @@ const Video = () => {
               </div>
             </Card>
 
-            {/* ...rest of your sections unchanged */}
+            {/* Mark as Completed Button */}
+            <Card className="border-0 shadow-card">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Video Progress</h3>
+                    <p className="text-muted-foreground">
+                      {isCompleted ? "You've completed this video!" : "Mark this video as completed to unlock quizzes"}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleMarkComplete}
+                    disabled={isCompleted || completingVideo}
+                    className={isCompleted ? "bg-green-600 hover:bg-green-700" : ""}
+                  >
+                    {completingVideo ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Completing...
+                      </>
+                    ) : isCompleted ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Completed ✅
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Mark as Completed
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quiz Section */}
+            <Card className="border-0 shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Quizzes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!isCompleted ? (
+                  <div className="text-center py-8">
+                    <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">
+                      Complete the video to unlock quizzes
+                    </p>
+                  </div>
+                ) : loadingQuizzes ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading quizzes...</p>
+                  </div>
+                ) : quizzes.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">
+                      No quizzes available for this video yet
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {quizzes.map((quiz, index) => (
+                      <div key={index} className="border rounded-lg p-4 bg-muted/20">
+                        <div className="flex items-start justify-between mb-3">
+                          <h4 className="font-medium text-sm">Question {index + 1}</h4>
+                          <Badge 
+                            variant="outline" 
+                            className={getDifficultyColor(quiz.difficulty)}
+                          >
+                            {quiz.difficulty}
+                          </Badge>
+                        </div>
+                        <p className="text-sm mb-3 leading-relaxed">{quiz.question}</p>
+                        <div className="bg-muted/30 rounded-md p-3">
+                          <p className="text-sm font-medium text-muted-foreground mb-1">Answer:</p>
+                          <p className="text-sm">{quiz.answer}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Video Info */}
+            <Card className="border-0 shadow-card">
+              <CardHeader>
+                <CardTitle className="text-lg">{video.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm text-muted-foreground">{video.channel}</span>
+                </div>
+                <Badge variant="outline" className={getDifficultyColor(video.difficulty)}>
+                  {video.difficulty}
+                </Badge>
+                {summary && (
+                  <div>
+                    <h4 className="font-medium mb-2">Summary</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {summary}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

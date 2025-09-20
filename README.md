@@ -158,6 +158,7 @@ The frontend now connects directly to Supabase instead of using n8n webhooks for
 - **`videos`:** Stores processed YouTube videos with metadata and summaries
 - **`quizzes`:** Contains generated quiz questions for each video
 - **`requested_topics`:** Queue of user-requested topics for future processing
+- **`progress`:** Tracks video completion status for users to unlock quizzes
 
 ### User Experience
 
@@ -168,3 +169,118 @@ The frontend now connects directly to Supabase instead of using n8n webhooks for
 5. Content becomes available within 24 hours
 
 This architecture eliminates n8n dependency while providing seamless user experience and automatic content generation.
+
+## Local Testing the Workflow
+
+You can test and run the learning path generation workflow locally for immediate results without waiting for GitHub Actions.
+
+### Environment Setup
+
+1. **Set required environment variables:**
+   ```bash
+   export YT_API_KEY="your_youtube_api_key"
+   export GROQ_API_KEY="your_groq_api_key"
+   export SUPABASE_URL="your_supabase_project_url"
+   export SUPABASE_KEY="your_supabase_service_role_key"
+   ```
+
+2. **Run the workflow locally:**
+   ```bash
+   # Generate learning path for default topic (Python beginner)
+   npm run update-learning-path
+   
+   # Generate for specific topic and goal
+   node scripts/fetch_and_update.js --topic=python --goal=beginner
+   node scripts/fetch_and_update.js --topic=javascript --goal=intermediate
+   node scripts/fetch_and_update.js --topic=react --goal=advanced
+   ```
+
+### What Happens
+
+1. **YouTube Search:** Finds 50 relevant videos using YouTube Data API v3
+2. **Statistics Gathering:** Fetches view counts, likes, comments for ranking
+3. **Intelligent Ranking:** Scores videos based on engagement and recency
+4. **LLM Processing:** Top 6 videos processed by Groq's llama-3.3-70b-versatile
+5. **Content Generation:** Creates structured learning path with summaries and quizzes
+6. **Database Update:** Upserts results directly into Supabase `videos` and `quizzes` tables
+
+### Benefits of Local Testing
+
+- **Immediate Results:** See new content in your frontend instantly
+- **Development Speed:** Test changes without waiting for scheduled runs
+- **Debugging:** View detailed logs and error messages
+- **Custom Topics:** Generate content for any topic on-demand
+
+The local workflow refreshes your Supabase database immediately, making new learning paths available in your frontend without any delay.
+
+## Video Progress Tracking & Quiz System
+
+The application includes a comprehensive video completion tracking system that unlocks quizzes for completed videos.
+
+### Progress Table Schema
+
+The `progress` table must exist in your Supabase database with the following structure:
+
+```sql
+create table if not exists progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  video_url text not null,
+  completed boolean default false,
+  completed_at timestamp with time zone default now(),
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Create unique constraint to prevent duplicate entries
+alter table progress add constraint unique_user_video unique (user_id, video_url);
+
+-- Enable Row Level Security (RLS)
+alter table progress enable row level security;
+
+-- Create RLS policies
+create policy "Users can view their own progress" on progress
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own progress" on progress
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can update their own progress" on progress
+  for update using (auth.uid() = user_id);
+```
+
+### How Video Completion Works
+
+1. **Mark as Completed Button**: Users can mark videos as completed below the video player
+2. **Progress Tracking**: Completion status is stored in the `progress` table with user ID and video URL
+3. **Quiz Unlocking**: Once marked as completed, quizzes become available for that specific video
+4. **State Management**: React state automatically refreshes to show unlocked quizzes
+5. **Persistent Storage**: Completion status persists across sessions and page reloads
+
+### Quiz System Features
+
+- **Conditional Display**: Quizzes are only shown after video completion
+- **Dynamic Loading**: Up to 6 quiz questions are fetched from Supabase filtered by:
+  - Video URL (exact match)
+  - Search term (optional)
+  - Learning goal (optional)
+- **Difficulty Badges**: Each quiz question displays its difficulty level (easy, medium, hard)
+- **Clean UI**: Questions are displayed in card format with answers revealed
+- **Loading States**: Proper loading indicators while fetching quiz data
+
+### API Functions
+
+The following helper functions are available in `src/lib/api.ts`:
+
+- `markVideoCompleted(userId, videoUrl)`: Marks a video as completed
+- `getQuizzesByVideo(videoUrl, searchTerm?, learningGoal?)`: Fetches quizzes for a video
+- `isVideoCompleted(userId, videoUrl)`: Checks if a video is completed
+
+### User Experience Flow
+
+1. User watches a video on the Video page
+2. Below the video player, they see a "Mark as Completed" button
+3. After clicking, the button changes to "Completed ✅" and becomes disabled
+4. The Quiz section automatically refreshes and displays available quizzes
+5. If no quizzes exist, a friendly message is shown
+6. Quiz questions are displayed with difficulty badges and structured answers
