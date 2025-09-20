@@ -151,9 +151,12 @@ const Courses = () => {
         {/* Videos Grid */}
         {videos.length === 0 ? (
           <div className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2">No courses found</h3>
-            <p className="text-muted-foreground">
-              Try searching for a different topic or adjust your learning level.
+            <h3 className="text-xl font-semibold mb-2">Learning Path Being Prepared</h3>
+            <p className="text-muted-foreground mb-4">
+              We're curating the best {topic} content for {goal} level learners.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This topic has been added to our generation queue. Please check back soon!
             </p>
           </div>
         ) : (

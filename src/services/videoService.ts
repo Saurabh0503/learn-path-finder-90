@@ -1,3 +1,5 @@
+import { getVideos, getQuizzes, requestTopic, isTopicRequested } from '../lib/api';
+
 // Helper function to extract valid YouTube video ID
 function extractVideoId(idOrUrl: string | undefined, thumbnail?: string): string {
   if (!idOrUrl) return "";
@@ -49,42 +51,60 @@ export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<F
     throw new Error("Topic is required");
   }
 
-  const url = `https://dhanwai.app.n8n.cloud/webhook/youtube-learning?topic=${encodeURIComponent(topic)}&goal=${encodeURIComponent(goal || '')}`;
-
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { 
-        "x-api-key": "mySecretKey123" 
-      }
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`n8n webhook failed: ${res.status} ${text}`);
-    }
-
-    const data = await res.json();
-    const rawVideos = Array.isArray(data) ? data[0]?.videos : data.videos;
+    // Fetch videos from Supabase
+    const supabaseVideos = await getVideos(topic, goal || 'beginner');
     
-    if (!Array.isArray(rawVideos)) {
+    if (supabaseVideos.length === 0) {
+      // No videos found, check if topic is already requested
+      const alreadyRequested = await isTopicRequested(topic, goal || 'beginner');
+      
+      if (!alreadyRequested) {
+        // Request this topic for future generation
+        await requestTopic(topic, goal || 'beginner');
+        console.log(`📝 Requested new topic: ${topic} (${goal || 'beginner'})`);
+      }
+      
       return { videos: [] };
     }
     
-    // Normalize and filter videos to ensure valid YouTube IDs
-    const normalizedVideos = rawVideos
-      .map((video: any) => ({
-        ...video,
-        id: extractVideoId(video.id, video.thumbnail),
-      }))
-      .filter(v => v.id); // drop invalid ones
+    // Fetch quizzes for these videos
+    const supabaseQuizzes = await getQuizzes(topic, goal || 'beginner');
     
-    console.log(`✅ Normalized ${normalizedVideos.length}/${rawVideos.length} videos with valid YouTube IDs`);
-    normalizedVideos.forEach(v => console.log(`🎥 Video ID: ${v.id} - ${v.title}`));
+    // Group quizzes by video URL
+    const quizzesByUrl: { [url: string]: any[] } = {};
+    supabaseQuizzes.forEach(quiz => {
+      if (!quizzesByUrl[quiz.url]) {
+        quizzesByUrl[quiz.url] = [];
+      }
+      quizzesByUrl[quiz.url].push({
+        question: quiz.question,
+        options: [quiz.answer, "Option 2", "Option 3", "Option 4"], // Simplified for now
+        correct: 0 // First option is always correct for now
+      });
+    });
+    
+    // Transform Supabase data to match existing VideoData interface
+    const normalizedVideos: VideoData[] = supabaseVideos.map((video, index) => {
+      const cleanId = extractVideoId(video.id, video.thumbnail) || video.id;
+      
+      return {
+        id: cleanId,
+        title: video.title,
+        thumbnail: video.thumbnail || `https://img.youtube.com/vi/${cleanId}/hqdefault.jpg`,
+        channel: video.channel,
+        difficulty: video.level,
+        rank: index + 1, // Simple ranking based on order
+        summary: video.summary,
+        quiz: quizzesByUrl[video.url] || []
+      };
+    }).filter(v => v.id); // Filter out videos with invalid IDs
+    
+    console.log(`✅ Loaded ${normalizedVideos.length} videos from Supabase for ${topic} (${goal || 'beginner'})`);
     
     return { videos: normalizedVideos };
   } catch (error) {
-    console.error('Error fetching videos:', error);
+    console.error('Error fetching videos from Supabase:', error);
     throw new Error('Failed to fetch videos from learning platform');
   }
 };

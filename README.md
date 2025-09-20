@@ -128,3 +128,43 @@ You can also trigger manual updates via GitHub Actions with custom topics and go
 ### Fallback Behavior
 
 If Supabase is unavailable, the script will save data to `out/videos.json` and `out/quizzes.json` as backup files.
+
+## Frontend Supabase Integration
+
+The frontend now connects directly to Supabase instead of using n8n webhooks for better performance and reliability.
+
+### Environment Setup
+
+1. **Copy environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Set your Supabase credentials in `.env`:**
+   ```bash
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_anon_key_here
+   ```
+
+### How It Works
+
+- **Direct Database Queries:** Frontend queries `videos` and `quizzes` tables directly from Supabase
+- **Dynamic Topic Requests:** When users search for unavailable topics, they're automatically added to `requested_topics` table
+- **Automatic Generation:** GitHub Actions processes requested topics on the next scheduled run
+- **Real-time Updates:** New learning paths appear automatically without manual intervention
+
+### Database Tables
+
+- **`videos`:** Stores processed YouTube videos with metadata and summaries
+- **`quizzes`:** Contains generated quiz questions for each video
+- **`requested_topics`:** Queue of user-requested topics for future processing
+
+### User Experience
+
+1. User searches for a topic (e.g., "Machine Learning", "Advanced")
+2. If content exists: Videos load instantly from Supabase
+3. If content missing: Friendly message shows "Learning path being prepared"
+4. Topic gets queued for next GitHub Actions run
+5. Content becomes available within 24 hours
+
+This architecture eliminates n8n dependency while providing seamless user experience and automatic content generation.

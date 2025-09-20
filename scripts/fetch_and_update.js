@@ -3,9 +3,50 @@
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const config = require('./config.json');
 
-// Load configuration
-const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
+
+// Function to get requested topics from Supabase
+async function getRequestedTopics() {
+  try {
+    const { data, error } = await supabase
+      .from('requested_topics')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching requested topics:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getRequestedTopics:', error);
+    return [];
+  }
+}
+
+// Function to remove processed topic from requested_topics
+async function removeRequestedTopic(id) {
+  try {
+    const { error } = await supabase
+      .from('requested_topics')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error removing requested topic:', error);
+    } else {
+      console.log(`✅ Removed processed topic: ${id}`);
+    }
+  } catch (error) {
+    console.error('Error in removeRequestedTopic:', error);
+  }
+}
 
 // Environment variables
 const YT_API_KEY = process.env.YT_API_KEY;
@@ -13,11 +54,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-// Initialize Supabase client
-let supabase = null;
-if (SUPABASE_URL && SUPABASE_KEY) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-}
+// Note: supabase client already initialized above
 
 // Parse CLI arguments
 function parseArgs() {
@@ -315,84 +352,113 @@ async function saveToSupabase(videos, quizzes) {
 
 // Main orchestrator function
 async function main() {
-  try {
-    const args = parseArgs();
-    const topic = args.topic;
+  const args = parseArgs();
+  let topicsToProcess = [];
+  
+  // Check if specific topic/goal provided via CLI
+  if (args.topic || args.goal) {
+    const topic = args.topic || 'python';
     const goal = args.goal || 'beginner';
+    topicsToProcess.push({ searchTerm: topic, learningGoal: goal, id: null });
+  } else {
+    // Get requested topics from database
+    console.log('📋 Checking for requested topics...');
+    const requestedTopics = await getRequestedTopics();
     
-    if (!topic) {
-      console.error('❌ Missing required --topic parameter');
-      console.log('Usage: node fetch_and_update.js --topic=python --goal=beginner');
-      process.exit(1);
+    if (requestedTopics.length === 0) {
+      console.log('ℹ️ No requested topics found. Processing default topics...');
+      // Default topics if none requested
+      topicsToProcess = [
+        { searchTerm: 'python', learningGoal: 'beginner', id: null },
+        { searchTerm: 'javascript', learningGoal: 'beginner', id: null },
+        { searchTerm: 'react', learningGoal: 'intermediate', id: null },
+        { searchTerm: 'nodejs', learningGoal: 'advanced', id: null }
+      ];
+    } else {
+      console.log(`📝 Found ${requestedTopics.length} requested topics`);
+      topicsToProcess = requestedTopics.map(topic => ({
+        searchTerm: topic.searchTerm,
+        learningGoal: topic.learningGoal,
+        id: topic.id
+      }));
     }
-    
-    if (!YT_API_KEY) {
-      console.error('❌ Missing YT_API_KEY environment variable');
-      process.exit(1);
-    }
-    
-    if (!GROQ_API_KEY) {
-      console.error('❌ Missing GROQ_API_KEY environment variable');
-      process.exit(1);
-    }
-    
-    console.log(`🚀 Starting learning path generation for: ${topic} (${goal})`);
-    
-    // Step 1: Search YouTube
-    console.log('🔍 Searching YouTube...');
-    const searchResults = await youtubeSearch(topic, goal);
-    console.log(`Found ${searchResults.length} videos`);
-    
-    if (searchResults.length === 0) {
-      console.log('❌ No videos found for the given topic');
-      return;
-    }
-    
-    // Step 2: Get video statistics
-    console.log('📊 Fetching video statistics...');
-    const videoIds = searchResults.map(v => v.id.videoId);
-    const statsResults = await youtubeStats(videoIds);
-    
-    // Step 3: Merge data
-    console.log('🔗 Merging search results with statistics...');
-    const mergedVideos = mergeStats(searchResults, statsResults, topic, goal);
-    
-    // Step 4: Rank videos
-    console.log('📈 Ranking videos by engagement...');
-    const rankedVideos = rankVideos(mergedVideos);
-    
-    // Step 5: Prepare top K for LLM
-    console.log(`🎯 Selecting top ${config.ranking.topK} videos...`);
-    const topVideosData = prepareTopK(rankedVideos);
-    
-    // Step 6: Call LLM
-    console.log('🤖 Generating learning path with LLM...');
-    const llmOutput = await callLLM(topVideosData);
-    
-    // Step 7: Sanitize output
-    console.log('🧹 Sanitizing LLM output...');
-    const sanitizedData = sanitizeLLMOutput(llmOutput);
-    const learningPath = sanitizedData.learning_path || [];
-    
-    if (learningPath.length === 0) {
-      console.log('❌ No learning path generated');
-      return;
-    }
-    
-    // Step 8: Flatten data
-    console.log('📋 Flattening data for storage...');
-    const videos = flattenVideosFromLearningPath(learningPath, topic, goal);
-    const quizzes = flattenQuizzesFromLearningPath(learningPath, topic, goal);
-    
-    // Step 9: Save to database
-    await saveToSupabase(videos, quizzes);
-    
-    console.log('🎉 Learning path generation completed successfully!');
-    
-  } catch (error) {
-    console.error('💥 Error:', error.message);
+  }
+  
+  // Validate environment variables
+  if (!YT_API_KEY) {
+    console.error('❌ Missing YT_API_KEY environment variable');
     process.exit(1);
   }
+  
+  if (!GROQ_API_KEY) {
+    console.error('❌ Missing GROQ_API_KEY environment variable');
+    process.exit(1);
+  }
+  
+  // Process each topic
+  for (const topicData of topicsToProcess) {
+    const { searchTerm: topic, learningGoal: goal, id } = topicData;
+    
+    console.log(`\n🚀 Starting learning path generation for: ${topic} (${goal})`);
+    
+    try {
+      // Step 1: YouTube search
+      console.log('🔍 Searching YouTube...');
+      const searchResults = await youtubeSearch(topic);
+      
+      // Step 2: Get video statistics
+      console.log('📊 Fetching video statistics...');
+      const statsResults = await youtubeStats(searchResults);
+      
+      // Step 3: Merge data
+      console.log('🔗 Merging search and stats data...');
+      const mergedData = mergeStats(searchResults, statsResults);
+      
+      // Step 4: Rank videos
+      console.log('🏆 Ranking videos...');
+      const rankedVideos = rankVideos(mergedData);
+      
+      // Step 5: Prepare top K for LLM
+      console.log(`🎯 Selecting top ${config.ranking.topK} videos...`);
+      const topVideosData = prepareTopK(rankedVideos);
+      
+      // Step 6: Call LLM
+      console.log('🤖 Generating learning path with LLM...');
+      const llmOutput = await callLLM(topVideosData);
+      
+      // Step 7: Sanitize output
+      console.log('🧹 Sanitizing LLM output...');
+      const sanitizedData = sanitizeLLMOutput(llmOutput);
+      const learningPath = sanitizedData.learning_path || [];
+      
+      if (learningPath.length === 0) {
+        console.log('❌ No learning path generated');
+        continue;
+      }
+      
+      // Step 8: Flatten data
+      console.log('📋 Flattening data for storage...');
+      const videos = flattenVideosFromLearningPath(learningPath, topic, goal);
+      const quizzes = flattenQuizzesFromLearningPath(learningPath, topic, goal);
+      
+      // Step 9: Save to database
+      await saveToSupabase(videos, quizzes);
+      
+      // Step 10: Remove from requested_topics if it was a user request
+      if (id) {
+        await removeRequestedTopic(id);
+      }
+      
+      console.log(`🎉 Learning path generation completed for ${topic} (${goal})!`);
+      
+    } catch (error) {
+      console.error(`💥 Error processing ${topic} (${goal}):`, error.message);
+      // Continue with next topic instead of exiting
+      continue;
+    }
+  }
+  
+  console.log('\n✅ All topics processed successfully!');
 }
 
 // Run if called directly
