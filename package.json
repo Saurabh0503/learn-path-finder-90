@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "update-learning-path": "node scripts/fetch_and_update.js --topic=python --goal=beginner"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

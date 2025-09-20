@@ -1,0 +1,29 @@
+{
+  "youtube": {
+    "maxResults": 50,
+    "videoDuration": "long",
+    "safeSearch": "strict",
+    "videoEmbeddable": "true"
+  },
+  "ranking": {
+    "weights": {
+      "views": 0.35,
+      "likeRatio": 0.35,
+      "commentRatio": 0.1,
+      "recency": 0.2
+    },
+    "topK": 6
+  },
+  "llm": {
+    "model": "llama-3.3-70b-versatile",
+    "temperature": 0.2,
+    "maxTokens": 3000,
+    "prompt": "You are designing a structured learning path for YouTube videos.\n\nInputs:\n- Search Term: {searchTerm}\n- Learner goal: {learningGoal}\n- Videos: {videos}\n\nInstructions:\n1. You MUST include **every single video from the input \"Videos\" list** in the output. Do not drop, skip, or merge videos. If 10 videos are provided, output exactly 10.\n2. Organize the videos into a clear progression (Beginner → Intermediate → Advanced), depending on the learner's goal.\n3. For each video, output:\n   - searchTerm (copy of input searchTerm)\n   - learningGoal (copy of input learningGoal)\n   - title\n   - channel\n   - thumbnail\n   - url\n   - summary (short description of all topics covered in the video)\n   - level (Beginner | Intermediate | Advanced)\n   - quizzes: an array of quiz objects. For each difficulty (\"easy\", \"medium\", \"hard\"), create **exactly 2 questions per video**.\n     - Easy → recall (syntax, definitions, basic concepts)\n     - Medium → applied understanding (explain differences, small coding tasks)\n     - Hard → problem-solving (real coding tasks, debugging, advanced concepts)\n     Each quiz object must include:\n       • difficulty\n       • question\n       • answer\n4. Output rules:\n   - Only return valid JSON.\n   - No markdown, no explanations, no comments.\n   - Always wrap everything in a single object with \"learning_path\" array.\n   - Use single quotes inside code examples (e.g., print('hello')).\n   - Do not stop early. Ensure the number of videos in the output exactly matches the input.\n\nOutput format:\n{\n  \"learning_path\": [\n    {\n      \"searchTerm\": \"string\",\n      \"learningGoal\": \"string\",\n      \"title\": \"string\",\n      \"channel\": \"string\",\n      \"thumbnail\": \"string\",\n      \"url\": \"string\",\n      \"summary\": \"string\",\n      \"level\": \"Beginner | Intermediate | Advanced\",\n      \"quizzes\": [\n        { \"difficulty\": \"easy\", \"question\": \"string\", \"answer\": \"string\" },\n        { \"difficulty\": \"easy\", \"question\": \"string\", \"answer\": \"string\" },\n        { \"difficulty\": \"medium\", \"question\": \"string\", \"answer\": \"string\" },\n        { \"difficulty\": \"medium\", \"question\": \"string\", \"answer\": \"string\" },\n        { \"difficulty\": \"hard\", \"question\": \"string\", \"answer\": \"string\" },\n        { \"difficulty\": \"hard\", \"question\": \"string\", \"answer\": \"string\" }\n      ]\n    }\n  ]\n}"
+  },
+  "supabase": {
+    "tables": {
+      "videos": "videos",
+      "quizzes": "quizzes"
+    }
+  }
+}
