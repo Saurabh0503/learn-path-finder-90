@@ -290,6 +290,51 @@ The project includes a migration (`20250921190700_unify_column_naming_camelcase.
 - Updates indexes to use the new column names
 - Provides verification and rollback instructions
 
+#### Running the Migration
+
+1. **Apply the migration** in your Supabase dashboard or via CLI:
+   ```bash
+   # If using Supabase CLI
+   supabase db push
+   
+   # Or manually run the SQL in Supabase dashboard
+   ```
+
+2. **Verify the schema** using the automated verification script:
+   ```bash
+   # Set environment variables
+   export SUPABASE_URL="https://your-project.supabase.co"
+   export SUPABASE_KEY="your-service-role-key"
+   
+   # Run verification
+   node scripts/verify_schema.js
+   ```
+
+The verification script will:
+- ✅ Test that `videos` table has `searchTerm` and `learningGoal` columns
+- ✅ Test that `quizzes` table has `searchTerm` and `learningGoal` columns  
+- ✅ Confirm old snake_case columns have been removed
+- 📊 Display sample data to verify the migration worked correctly
+
+#### Expected Output
+
+```
+🔍 Verifying database schema...
+
+📹 Testing videos table...
+✅ Videos table: camelCase columns (searchTerm, learningGoal) exist
+   Sample rows found: 5
+
+❓ Testing quizzes table...
+✅ Quizzes table: camelCase columns (searchTerm, learningGoal) exist
+   Sample rows found: 3
+
+🔍 Checking for old snake_case columns...
+✅ Old snake_case columns successfully removed
+
+🎉 SUCCESS: Database schema verification passed!
+```
+
 ## Video Progress Tracking & Quiz System
 
 The application includes a comprehensive video completion tracking system that unlocks quizzes for completed videos.
