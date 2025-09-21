@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { normalizeTopicPair } from '../utils/normalizeInput.js';
 
 export interface Video {
   id: string;
@@ -38,11 +39,14 @@ export interface RequestedTopic {
  */
 export async function getVideos(searchTerm: string, learningGoal: string): Promise<Video[]> {
   try {
+    // Apply normalization to ensure consistent queries
+    const { searchTerm: normalizedSearchTerm, learningGoal: normalizedLearningGoal } = normalizeTopicPair(searchTerm, learningGoal);
+    
     const { data, error } = await supabase
       .from('videos')
       .select('*')
-      .eq('searchTerm', searchTerm.toLowerCase())
-      .eq('learningGoal', learningGoal.toLowerCase())
+      .eq('searchTerm', normalizedSearchTerm)
+      .eq('learningGoal', normalizedLearningGoal)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -68,11 +72,14 @@ export async function getVideos(searchTerm: string, learningGoal: string): Promi
  */
 export async function getQuizzes(searchTerm: string, learningGoal: string): Promise<Quiz[]> {
   try {
+    // Apply normalization to ensure consistent queries
+    const { searchTerm: normalizedSearchTerm, learningGoal: normalizedLearningGoal } = normalizeTopicPair(searchTerm, learningGoal);
+    
     const { data, error } = await supabase
       .from('quizzes')
       .select('*')
-      .eq('searchTerm', searchTerm.toLowerCase())
-      .eq('learningGoal', learningGoal.toLowerCase())
+      .eq('searchTerm', normalizedSearchTerm)
+      .eq('learningGoal', normalizedLearningGoal)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -107,6 +114,103 @@ export async function requestTopic(searchTerm: string, learningGoal: string): Pr
   if (error) {
     console.error('Error requesting topic:', error);
     throw new Error(`Failed to request topic: ${error.message}`);
+  }
+}
+
+/**
+ * Dynamic learning path generation - calls the API endpoint
+ */
+export async function generateLearningPath(searchTerm: string, learningGoal: string): Promise<{
+  status: 'exists' | 'started' | 'in_progress';
+  videos?: Video[];
+  message: string;
+  log_id?: string;
+  estimated_time?: string;
+}> {
+  try {
+    const response = await fetch('/api/generateLearningPath', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        searchTerm: searchTerm.toLowerCase(),
+        learningGoal: learningGoal.toLowerCase()
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `API request failed: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error: any) {
+    console.error('Error generating learning path:', error);
+    throw new Error(`Failed to generate learning path: ${error.message}`);
+  }
+}
+
+/**
+ * Check generation status by polling the videos table
+ */
+export async function checkGenerationStatus(searchTerm: string, learningGoal: string): Promise<{
+  completed: boolean;
+  videos: Video[];
+  count: number;
+}> {
+  try {
+    const { data: videos, error } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('searchTerm', searchTerm.toLowerCase())
+      .eq('learningGoal', learningGoal.toLowerCase())
+      .order('rank', { ascending: true });
+
+    if (error) {
+      console.error('Error checking generation status:', error);
+      return { completed: false, videos: [], count: 0 };
+    }
+
+    return {
+      completed: videos.length > 0,
+      videos: videos || [],
+      count: videos?.length || 0
+    };
+  } catch (error: any) {
+    console.error('Error in checkGenerationStatus:', error);
+    return { completed: false, videos: [], count: 0 };
+  }
+}
+
+/**
+ * Get generation logs for monitoring
+ */
+export async function getGenerationLogs(searchTerm?: string, learningGoal?: string): Promise<any[]> {
+  try {
+    let query = supabase
+      .from('generation_logs')
+      .select('*')
+      .order('started_at', { ascending: false })
+      .limit(10);
+
+    if (searchTerm && learningGoal) {
+      query = query
+        .eq('searchTerm', searchTerm.toLowerCase())
+        .eq('learningGoal', learningGoal.toLowerCase());
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching generation logs:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error in getGenerationLogs:', error);
+    return [];
   }
 }
 

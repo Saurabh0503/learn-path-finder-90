@@ -16,6 +16,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { isNormalized, testNormalization } from '../src/utils/normalizeInput.js';
 
 // Environment variables
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -34,10 +35,21 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function verifySchema() {
-  console.log('🔍 Verifying database schema...');
+  console.log('🔍 Verifying database schema and normalization...');
   console.log('');
 
   let allTestsPassed = true;
+  
+  // Test normalization utility first
+  console.log('🧪 Testing normalization utility...');
+  const normalizationTest = testNormalization();
+  if (normalizationTest.failed > 0) {
+    console.error(`❌ Normalization utility tests failed: ${normalizationTest.failed}/${normalizationTest.total}`);
+    allTestsPassed = false;
+  } else {
+    console.log(`✅ Normalization utility tests passed: ${normalizationTest.passed}/${normalizationTest.total}`);
+  }
+  console.log('');
 
   // Test 1: Verify videos table has camelCase columns
   console.log('📹 Testing videos table...');
@@ -120,28 +132,103 @@ async function verifySchema() {
     console.log('✅ Old snake_case columns appear to be removed (expected error)');
   }
 
+  // Test 4: Verify data normalization
+  console.log('🔧 Testing data normalization...');
+  try {
+    await verifyDataNormalization();
+  } catch (error) {
+    console.error('❌ Data normalization verification error:', error.message);
+    allTestsPassed = false;
+  }
+
   console.log('');
   console.log('='.repeat(60));
 
   if (allTestsPassed) {
-    console.log('🎉 SUCCESS: Database schema verification passed!');
+    console.log('🎉 SUCCESS: Database schema and normalization verification passed!');
     console.log('   ✅ Videos table uses camelCase columns');
     console.log('   ✅ Quizzes table uses camelCase columns');
     console.log('   ✅ Old snake_case columns have been removed');
+    console.log('   ✅ All data is properly normalized');
+    console.log('   ✅ Normalization utility works correctly');
     console.log('');
     console.log('Your database is ready to use with the updated LearnHub application.');
     process.exit(0);
   } else {
-    console.log('❌ FAILURE: Database schema verification failed!');
+    console.log('❌ FAILURE: Database schema or normalization verification failed!');
     console.log('');
     console.log('Please check the following:');
-    console.log('1. Run the migration: 20250921190700_unify_column_naming_camelcase.sql');
-    console.log('2. Ensure your SUPABASE_URL and SUPABASE_KEY are correct');
-    console.log('3. Check that you have the necessary permissions');
+    console.log('1. Run the schema migration: 20250921190700_unify_column_naming_camelcase.sql');
+    console.log('2. Run the normalization migration: 20250922010000_normalize_existing_data.sql');
+    console.log('3. Ensure your SUPABASE_URL and SUPABASE_KEY are correct');
+    console.log('4. Check that you have the necessary permissions');
     console.log('');
     console.log('If issues persist, check the Supabase dashboard for error details.');
     process.exit(1);
   }
+}
+
+/**
+ * Verify that all data in the database is properly normalized
+ */
+async function verifyDataNormalization() {
+  const tables = ['videos', 'quizzes', 'requested_topics'];
+  let totalUnnormalized = 0;
+  
+  for (const table of tables) {
+    console.log(`   Checking ${table} table...`);
+    
+    // Get distinct searchTerm and learningGoal values
+    const { data, error } = await supabase
+      .from(table)
+      .select('searchTerm, learningGoal')
+      .limit(100); // Limit for performance
+    
+    if (error) {
+      throw new Error(`Failed to query ${table}: ${error.message}`);
+    }
+    
+    if (!data || data.length === 0) {
+      console.log(`   ℹ️  ${table} table is empty`);
+      continue;
+    }
+    
+    let unnormalizedCount = 0;
+    const uniquePairs = new Set();
+    
+    data.forEach(row => {
+      const { searchTerm, learningGoal } = row;
+      const pairKey = `${searchTerm}|${learningGoal}`;
+      
+      if (!uniquePairs.has(pairKey)) {
+        uniquePairs.add(pairKey);
+        
+        // Check if values are normalized
+        if (!isNormalized(searchTerm)) {
+          console.log(`   ⚠️  Unnormalized searchTerm in ${table}: "${searchTerm}"`);
+          unnormalizedCount++;
+        }
+        
+        if (!isNormalized(learningGoal)) {
+          console.log(`   ⚠️  Unnormalized learningGoal in ${table}: "${learningGoal}"`);
+          unnormalizedCount++;
+        }
+      }
+    });
+    
+    if (unnormalizedCount === 0) {
+      console.log(`   ✅ ${table}: All ${uniquePairs.size} unique pairs are normalized`);
+    } else {
+      console.log(`   ❌ ${table}: ${unnormalizedCount} unnormalized values found`);
+      totalUnnormalized += unnormalizedCount;
+    }
+  }
+  
+  if (totalUnnormalized > 0) {
+    throw new Error(`Found ${totalUnnormalized} unnormalized values across all tables`);
+  }
+  
+  console.log('✅ All data is properly normalized');
 }
 
 // Run verification

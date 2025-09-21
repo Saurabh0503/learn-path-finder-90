@@ -1,4 +1,4 @@
-import { getVideos, getQuizzes, requestTopic, isTopicRequested } from '../lib/api';
+import { getVideos, getQuizzes, requestTopic, isTopicRequested, generateLearningPath, checkGenerationStatus } from '../lib/api';
 
 // Helper function to extract valid YouTube video ID
 function extractVideoId(idOrUrl: string | undefined, thumbnail?: string): string {
@@ -44,6 +44,8 @@ interface FetchVideosParams {
 
 interface FetchVideosResponse {
   videos: VideoData[];
+  status?: 'exists' | 'generating' | 'in_progress';
+  message?: string;
 }
 
 export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<FetchVideosResponse> => {
@@ -51,25 +53,70 @@ export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<F
     throw new Error("Topic is required");
   }
 
+  const normalizedGoal = goal || 'beginner';
+
   try {
-    // Fetch videos from Supabase
-    const supabaseVideos = await getVideos(topic, goal || 'beginner');
+    // Step 1: Check if videos already exist
+    const supabaseVideos = await getVideos(topic, normalizedGoal);
     
     if (supabaseVideos.length === 0) {
-      // No videos found, check if topic is already requested
-      const alreadyRequested = await isTopicRequested(topic, goal || 'beginner');
+      console.log(`🔍 No existing videos found for ${topic} + ${normalizedGoal}, starting dynamic generation...`);
       
-      if (!alreadyRequested) {
-        // Request this topic for future generation
-        await requestTopic(topic, goal || 'beginner');
-        console.log(`📝 Requested new topic: ${topic} (${goal || 'beginner'})`);
+      // Step 2: Trigger dynamic generation
+      try {
+        const generationResult = await generateLearningPath(topic, normalizedGoal);
+        
+        if (generationResult.status === 'exists' && generationResult.videos) {
+          // Videos were found during generation call
+          return await transformSupabaseVideosToResponse(generationResult.videos, topic, normalizedGoal);
+        } else if (generationResult.status === 'in_progress') {
+          // Generation is already in progress
+          return {
+            videos: [],
+            status: 'in_progress',
+            message: `Learning path is being prepared for ${topic} (${normalizedGoal}). Please wait...`
+          };
+        } else if (generationResult.status === 'started') {
+          // Generation just started
+          return {
+            videos: [],
+            status: 'generating',
+            message: `Preparing learning path for ${topic} (${normalizedGoal}). This may take 2-5 minutes...`
+          };
+        }
+      } catch (generationError) {
+        console.error('Dynamic generation failed:', generationError);
+        
+        // Fallback to old request system
+        const alreadyRequested = await isTopicRequested(topic, normalizedGoal);
+        if (!alreadyRequested) {
+          await requestTopic(topic, normalizedGoal);
+          console.log(`📝 Fallback: Requested topic for batch processing: ${topic} (${normalizedGoal})`);
+        }
+        
+        return {
+          videos: [],
+          status: 'generating',
+          message: `Learning path will be prepared for ${topic} (${normalizedGoal}). Please check back later.`
+        };
       }
-      
-      return { videos: [] };
     }
     
+    // Step 3: Transform existing videos to response format
+    return await transformSupabaseVideosToResponse(supabaseVideos, topic, normalizedGoal);
+  } catch (error) {
+    console.error('Error fetching videos from Supabase:', error);
+    throw new Error('Failed to fetch videos from learning platform');
+  }
+};
+
+/**
+ * Transform Supabase videos to the expected VideoData format
+ */
+async function transformSupabaseVideosToResponse(supabaseVideos: any[], topic: string, goal: string): Promise<FetchVideosResponse> {
+  try {
     // Fetch quizzes for these videos
-    const supabaseQuizzes = await getQuizzes(topic, goal || 'beginner');
+    const supabaseQuizzes = await getQuizzes(topic, goal);
     
     // Group quizzes by video URL
     const quizzesByUrl: { [url: string]: any[] } = {};
@@ -100,13 +147,13 @@ export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<F
       };
     }).filter(v => v.id); // Filter out videos with invalid IDs
     
-    console.log(`✅ Loaded ${normalizedVideos.length} videos from Supabase for ${topic} (${goal || 'beginner'})`);
+    console.log(`✅ Loaded ${normalizedVideos.length} videos from Supabase for ${topic} (${goal})`);
     
     return { videos: normalizedVideos };
   } catch (error) {
-    console.error('Error fetching videos from Supabase:', error);
-    throw new Error('Failed to fetch videos from learning platform');
+    console.error('Error transforming videos:', error);
+    return { videos: [] };
   }
-};
+}
 
 export type { VideoData, FetchVideosParams, FetchVideosResponse };

@@ -221,6 +221,84 @@ You can test and run the learning path generation workflow locally for immediate
 
 The local workflow refreshes your Supabase database immediately, making new learning paths available in your frontend without any delay.
 
+## Dynamic Learning Path Generation
+
+LearnHub now supports **dynamic, on-demand learning path generation** for any topic and difficulty level combination. The system automatically normalizes inputs and generates content in real-time.
+
+### API Endpoint
+
+**POST** `/api/generateLearningPath`
+
+```json
+{
+  "searchTerm": "React.js",
+  "learningGoal": "Intermediate"
+}
+```
+
+**Response Examples:**
+
+```json
+// Content already exists
+{
+  "status": "exists",
+  "videos": [...],
+  "message": "Found 5 videos for react + intermediate"
+}
+
+// Generation started
+{
+  "status": "started", 
+  "message": "Learning path generation started for react + intermediate",
+  "log_id": "uuid",
+  "estimated_time": "2-5 minutes"
+}
+
+// Generation in progress
+{
+  "status": "in_progress",
+  "message": "Learning path generation in progress for react + intermediate",
+  "minutes_elapsed": 3
+}
+```
+
+### Input Normalization
+
+All inputs are automatically normalized to ensure consistency and prevent duplicates:
+
+#### Normalization Rules
+
+1. **Trim whitespace** and convert to **lowercase**
+2. **Replace punctuation** (except `#` and `+`) with spaces
+3. **Collapse multiple spaces** into single spaces
+4. **Apply synonym mapping** for common variations
+
+#### Synonym Examples
+
+| Input | Normalized Output |
+|-------|------------------|
+| `"JavaScript"` | `"javascript"` |
+| `"React.js"` | `"react"` |
+| `"Node.JS"` | `"node"` |
+| `"C#"` | `"c#"` |
+| `"c sharp"` | `"c#"` |
+| `"C++"` | `"c++"` |
+| `"Python3"` | `"python"` |
+| `"Next.js"` | `"nextjs"` |
+| `"INTERMEDIATE"` | `"intermediate"` |
+| `"Basic"` | `"beginner"` |
+| `"Expert"` | `"advanced"` |
+
+#### Complex Examples
+
+| Input | Normalized Output |
+|-------|------------------|
+| `" PYTHON "` | `"python"` |
+| `"React.js & Redux"` | `"react redux"` |
+| `"Machine-Learning"` | `"machine learning"` |
+| `"Web   Development"` | `"web development"` |
+| `"Advanced Level"` | `"advanced"` |
+
 ## Database Schema & Error Handling
 
 ### Core Tables Schema
@@ -284,11 +362,18 @@ The API functions now include enhanced error handling:
 
 ### Migration Notes
 
-The project includes a migration (`20250921190700_unify_column_naming_camelcase.sql`) that:
-- Renames existing `search_term` columns to `searchTerm`
-- Renames existing `learning_goal` columns to `learningGoal`
-- Updates indexes to use the new column names
-- Provides verification and rollback instructions
+The project includes multiple migrations for schema consistency:
+
+1. **`20250921190700_unify_column_naming_camelcase.sql`**:
+   - Renames existing `search_term` columns to `searchTerm`
+   - Renames existing `learning_goal` columns to `learningGoal`
+   - Updates indexes to use the new column names
+
+2. **`20250922010000_normalize_existing_data.sql`**:
+   - Normalizes all existing data to consistent format
+   - Removes duplicate entries after normalization
+   - Adds database constraints to enforce normalization
+   - Includes comprehensive verification
 
 #### Running the Migration
 
@@ -300,26 +385,32 @@ The project includes a migration (`20250921190700_unify_column_naming_camelcase.
    # Or manually run the SQL in Supabase dashboard
    ```
 
-2. **Verify the schema** using the automated verification script:
+2. **Verify the schema and normalization** using the automated verification script:
    ```bash
    # Set environment variables
    export SUPABASE_URL="https://your-project.supabase.co"
    export SUPABASE_KEY="your-service-role-key"
    
-   # Run verification
+   # Run comprehensive verification
    node scripts/verify_schema.js
    ```
 
 The verification script will:
+- ✅ Test normalization utility functions
 - ✅ Test that `videos` table has `searchTerm` and `learningGoal` columns
 - ✅ Test that `quizzes` table has `searchTerm` and `learningGoal` columns  
 - ✅ Confirm old snake_case columns have been removed
-- 📊 Display sample data to verify the migration worked correctly
+- ✅ Verify all data is properly normalized (lowercase, no extra spaces)
+- ✅ Check for any unnormalized values in the database
+- 📊 Display sample data to verify everything works correctly
 
 #### Expected Output
 
 ```
-🔍 Verifying database schema...
+🔍 Verifying database schema and normalization...
+
+🧪 Testing normalization utility...
+✅ Normalization utility tests passed: 15/15
 
 📹 Testing videos table...
 ✅ Videos table: camelCase columns (searchTerm, learningGoal) exist
@@ -332,7 +423,42 @@ The verification script will:
 🔍 Checking for old snake_case columns...
 ✅ Old snake_case columns successfully removed
 
-🎉 SUCCESS: Database schema verification passed!
+🔧 Testing data normalization...
+   Checking videos table...
+   ✅ videos: All 3 unique pairs are normalized
+   Checking quizzes table...
+   ✅ quizzes: All 2 unique pairs are normalized
+   Checking requested_topics table...
+   ✅ requested_topics: All 1 unique pairs are normalized
+✅ All data is properly normalized
+
+🎉 SUCCESS: Database schema and normalization verification passed!
+   ✅ Videos table uses camelCase columns
+   ✅ Quizzes table uses camelCase columns
+   ✅ Old snake_case columns have been removed
+   ✅ All data is properly normalized
+   ✅ Normalization utility works correctly
+```
+
+### Generation Monitoring
+
+Monitor learning path generation with SQL queries:
+
+```sql
+-- View recent generation logs
+SELECT * FROM generation_logs 
+ORDER BY started_at DESC 
+LIMIT 10;
+
+-- Check generation status for specific topic
+SELECT * FROM generation_logs 
+WHERE "searchTerm" = 'react' AND "learningGoal" = 'intermediate'
+ORDER BY started_at DESC;
+
+-- View all normalized topic pairs in database
+SELECT DISTINCT "searchTerm", "learningGoal" 
+FROM videos 
+ORDER BY "searchTerm", "learningGoal";
 ```
 
 ## Video Progress Tracking & Quiz System
