@@ -1,4 +1,6 @@
-import { getVideos, getQuizzes, requestTopic, isTopicRequested, generateLearningPath, checkGenerationStatus } from '../lib/api';
+import { getVideos, getQuizzes } from '../lib/api.js';
+import { normalizeTopicPair } from '../utils/normalizeInput.js';
+import { supabase } from '../lib/supabaseClient.js';
 
 // Helper function to extract valid YouTube video ID
 function extractVideoId(idOrUrl: string | undefined, thumbnail?: string): string {
@@ -54,61 +56,94 @@ export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<F
   }
 
   const normalizedGoal = goal || 'beginner';
+  
+  // Apply normalization to ensure consistency
+  const { searchTerm: normalizedTopic, learningGoal: normalizedGoalFinal } = normalizeTopicPair(topic, normalizedGoal);
 
   try {
-    // Step 1: Check if videos already exist
-    const supabaseVideos = await getVideos(topic, normalizedGoal);
+    // Step 1: Check if videos already exist in Supabase
+    console.log(`🔍 Checking for existing videos: ${normalizedTopic} + ${normalizedGoalFinal}`);
+    const supabaseVideos = await getVideos(normalizedTopic, normalizedGoalFinal);
     
     if (supabaseVideos.length === 0) {
-      console.log(`🔍 No existing videos found for ${topic} + ${normalizedGoal}, starting dynamic generation...`);
+      console.log(`📡 No existing videos found, calling Edge Function for: ${normalizedTopic} + ${normalizedGoalFinal}`);
       
-      // Step 2: Trigger dynamic generation
+      // Step 2: Call Supabase Edge Function for dynamic generation
       try {
-        const generationResult = await generateLearningPath(topic, normalizedGoal);
+        const edgeFunctionResult = await callGenerationEdgeFunction(normalizedTopic, normalizedGoalFinal);
         
-        if (generationResult.status === 'exists' && generationResult.videos) {
-          // Videos were found during generation call
-          return await transformSupabaseVideosToResponse(generationResult.videos, topic, normalizedGoal);
-        } else if (generationResult.status === 'in_progress') {
+        if (edgeFunctionResult.status === 'exists' && edgeFunctionResult.videos) {
+          // Videos were found during Edge Function call
+          return await transformSupabaseVideosToResponse(edgeFunctionResult.videos, normalizedTopic, normalizedGoalFinal);
+        } else if (edgeFunctionResult.status === 'in_progress') {
           // Generation is already in progress
           return {
             videos: [],
             status: 'in_progress',
-            message: `Learning path is being prepared for ${topic} (${normalizedGoal}). Please wait...`
+            message: `Learning path is being prepared for ${normalizedTopic} (${normalizedGoalFinal}). Please wait...`
           };
-        } else if (generationResult.status === 'started') {
-          // Generation just started
-          return {
-            videos: [],
-            status: 'generating',
-            message: `Preparing learning path for ${topic} (${normalizedGoal}). This may take 2-5 minutes...`
-          };
+        } else if (edgeFunctionResult.status === 'success') {
+          // Generation completed successfully, refetch from Supabase
+          console.log(`✅ Edge Function completed, refetching videos...`);
+          const newVideos = await getVideos(normalizedTopic, normalizedGoalFinal);
+          return await transformSupabaseVideosToResponse(newVideos, normalizedTopic, normalizedGoalFinal);
         }
-      } catch (generationError) {
-        console.error('Dynamic generation failed:', generationError);
         
-        // Fallback to old request system
-        const alreadyRequested = await isTopicRequested(topic, normalizedGoal);
-        if (!alreadyRequested) {
-          await requestTopic(topic, normalizedGoal);
-          console.log(`📝 Fallback: Requested topic for batch processing: ${topic} (${normalizedGoal})`);
-        }
+        // Generation started
+        return {
+          videos: [],
+          status: 'generating',
+          message: `Preparing learning path for ${normalizedTopic} (${normalizedGoalFinal}). This may take 2-5 minutes...`
+        };
+        
+      } catch (edgeFunctionError) {
+        console.error('Edge Function call failed:', edgeFunctionError);
         
         return {
           videos: [],
           status: 'generating',
-          message: `Learning path will be prepared for ${topic} (${normalizedGoal}). Please check back later.`
+          message: `Learning path generation failed for ${normalizedTopic} (${normalizedGoalFinal}). Please try again later.`
         };
       }
     }
     
     // Step 3: Transform existing videos to response format
-    return await transformSupabaseVideosToResponse(supabaseVideos, topic, normalizedGoal);
+    console.log(`✅ Found ${supabaseVideos.length} existing videos for ${normalizedTopic} + ${normalizedGoalFinal}`);
+    return await transformSupabaseVideosToResponse(supabaseVideos, normalizedTopic, normalizedGoalFinal);
+    
   } catch (error) {
-    console.error('Error fetching videos from Supabase:', error);
+    console.error('Error in fetchVideos:', error);
     throw new Error('Failed to fetch videos from learning platform');
   }
 };
+
+/**
+ * Call the Supabase Edge Function for learning path generation
+ */
+async function callGenerationEdgeFunction(searchTerm: string, learningGoal: string): Promise<any> {
+  try {
+    console.log(`📡 Calling Edge Function: generateLearningPath for ${searchTerm} + ${learningGoal}`);
+    
+    const { data, error } = await supabase.functions.invoke('generateLearningPath', {
+      body: {
+        searchTerm,
+        learningGoal
+      }
+    });
+
+    if (error) {
+      console.error('Edge Function error:', error);
+      throw new Error(`Edge Function failed: ${error.message}`);
+    }
+
+    console.log(`✅ Edge Function response:`, data);
+    return data;
+
+  } catch (error) {
+    console.error('Failed to call Edge Function:', error);
+    throw error;
+  }
+}
 
 /**
  * Transform Supabase videos to the expected VideoData format

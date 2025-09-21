@@ -223,17 +223,21 @@ The local workflow refreshes your Supabase database immediately, making new lear
 
 ## Dynamic Learning Path Generation
 
-LearnHub now supports **dynamic, on-demand learning path generation** for any topic and difficulty level combination. The system automatically normalizes inputs and generates content in real-time.
+LearnHub now supports **dynamic, on-demand learning path generation** powered by **Supabase Edge Functions**. The system automatically normalizes inputs and generates content in real-time using YouTube API and Groq LLM.
 
-### API Endpoint
+### 🚀 Supabase Edge Function
 
-**POST** `/api/generateLearningPath`
+**Endpoint:** `POST /functions/v1/generateLearningPath`
 
-```json
-{
-  "searchTerm": "React.js",
-  "learningGoal": "Intermediate"
-}
+```bash
+# Production endpoint
+curl -X POST https://csrggvuucfyeaxdunrjy.functions.supabase.co/generateLearningPath \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  -d '{
+    "searchTerm": "React.js",
+    "learningGoal": "Intermediate"
+  }'
 ```
 
 **Response Examples:**
@@ -246,12 +250,15 @@ LearnHub now supports **dynamic, on-demand learning path generation** for any to
   "message": "Found 5 videos for react + intermediate"
 }
 
-// Generation started
+// Generation completed successfully
 {
-  "status": "started", 
-  "message": "Learning path generation started for react + intermediate",
-  "log_id": "uuid",
-  "estimated_time": "2-5 minutes"
+  "status": "success",
+  "inserted": {
+    "videos": 5,
+    "quizzes": 15
+  },
+  "message": "Successfully generated learning path for react + intermediate",
+  "log_id": "uuid-here"
 }
 
 // Generation in progress
@@ -260,6 +267,29 @@ LearnHub now supports **dynamic, on-demand learning path generation** for any to
   "message": "Learning path generation in progress for react + intermediate",
   "minutes_elapsed": 3
 }
+```
+
+### 🔧 CLI Usage
+
+The CLI script now uses the shared core logic:
+
+```bash
+# Using named arguments
+node scripts/learningPathGenerator.js --topic=python --goal=beginner
+
+# Using positional arguments
+node scripts/learningPathGenerator.js react intermediate
+
+# Complex topics with spaces
+node scripts/learningPathGenerator.js "machine learning" advanced
+```
+
+**Environment Variables Required:**
+```bash
+export SUPABASE_URL="https://csrggvuucfyeaxdunrjy.supabase.co"
+export SUPABASE_KEY="your-service-role-key"
+export YT_API_KEY="your-youtube-api-key"        # Optional
+export GROQ_API_KEY="your-groq-api-key"        # Optional
 ```
 
 ### Input Normalization
@@ -440,7 +470,7 @@ The verification script will:
    ✅ Normalization utility works correctly
 ```
 
-### Generation Monitoring
+### 📊 Generation Monitoring
 
 Monitor learning path generation with SQL queries:
 
@@ -460,6 +490,43 @@ SELECT DISTINCT "searchTerm", "learningGoal"
 FROM videos 
 ORDER BY "searchTerm", "learningGoal";
 ```
+
+### 🔧 Edge Function Setup
+
+For detailed setup instructions, see [EDGE_FUNCTION_SETUP.md](./EDGE_FUNCTION_SETUP.md).
+
+**Quick Setup:**
+
+1. **Deploy Edge Function:**
+   ```bash
+   supabase functions deploy generateLearningPath
+   ```
+
+2. **Configure Environment Variables** in Supabase Dashboard:
+   - `SUPABASE_URL` - Your Supabase project URL
+   - `SUPABASE_SERVICE_ROLE_KEY` - Service role key
+   - `YT_API_KEY` - YouTube Data API key (optional)
+   - `GROQ_API_KEY` - Groq API key (optional)
+
+3. **Test the Function:**
+   ```bash
+   curl -X POST https://your-project.functions.supabase.co/generateLearningPath \
+     -H "Content-Type: application/json" \
+     -d '{"searchTerm":"python","learningGoal":"beginner"}'
+   ```
+
+### 🎯 Frontend Integration
+
+The frontend automatically calls the Edge Function when no content exists:
+
+1. **User searches** for a topic (e.g., "Python", "Beginner")
+2. **Frontend checks** Supabase for existing videos
+3. **If none exist**, calls Edge Function for generation
+4. **Shows status** ("Preparing learning path...")
+5. **Polls database** until content appears
+6. **Displays videos** when generation completes
+
+**No user intervention required** - the system handles everything automatically!
 
 ## Video Progress Tracking & Quiz System
 
