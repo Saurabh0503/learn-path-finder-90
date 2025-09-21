@@ -266,8 +266,8 @@ function flattenVideosFromLearningPath(learningPath, searchTerm, learningGoal) {
     
     return {
       id: videoId,
-      search_term: searchTerm,
-      learning_goal: learningGoal,
+      searchTerm: searchTerm,
+      learningGoal: learningGoal,
       title: video.title || 'Untitled Video',
       url: video.url || '',
       summary: video.summary || 'No summary available.',
@@ -292,8 +292,8 @@ function flattenQuizzesFromLearningPath(learningPath, searchTerm, learningGoal) 
       video.quizzes.forEach(quiz => {
         quizzes.push({
           video_id: videoId,
-          search_term: searchTerm,
-          learning_goal: learningGoal,
+          searchTerm: searchTerm,
+          learningGoal: learningGoal,
           title: video.title || '',
           url: video.url || '',
           level: video.level || '',

@@ -155,10 +155,18 @@ The frontend now connects directly to Supabase instead of using n8n webhooks for
 
 ### Database Tables
 
-- **`videos`:** Stores processed YouTube videos with metadata and summaries
-- **`quizzes`:** Contains generated quiz questions for each video
-- **`requested_topics`:** Queue of user-requested topics for future processing
+- **`videos`:** Stores processed YouTube videos with metadata and summaries (uses camelCase: `searchTerm`, `learningGoal`)
+- **`quizzes`:** Contains generated quiz questions for each video (uses camelCase: `searchTerm`, `learningGoal`)
+- **`requested_topics`:** Queue of user-requested topics for future processing (uses camelCase: `searchTerm`, `learningGoal`)
 - **`user_progress`:** Tracks video completion status and quiz scores for users
+
+#### Column Naming Convention
+
+The project uses **camelCase** for all column names across database, backend, and frontend:
+- `searchTerm` (not `search_term`)
+- `learningGoal` (not `learning_goal`)
+
+This ensures consistency and prevents schema mismatch errors.
 
 ### User Experience
 
@@ -212,6 +220,75 @@ You can test and run the learning path generation workflow locally for immediate
 - **Custom Topics:** Generate content for any topic on-demand
 
 The local workflow refreshes your Supabase database immediately, making new learning paths available in your frontend without any delay.
+
+## Database Schema & Error Handling
+
+### Core Tables Schema
+
+The project uses camelCase naming convention for all database columns:
+
+```sql
+-- Videos table with camelCase columns
+create table if not exists videos (
+  id text primary key, -- YouTube video ID
+  searchTerm text not null,
+  learningGoal text not null,
+  title text not null,
+  url text not null,
+  summary text,
+  level text,
+  channel text,
+  thumbnail text,
+  created_at timestamp with time zone default now()
+);
+
+-- Quizzes table with camelCase columns
+create table if not exists quizzes (
+  id uuid primary key default gen_random_uuid(),
+  video_id text not null,
+  searchTerm text not null,
+  learningGoal text not null,
+  title text not null,
+  url text not null,
+  level text,
+  difficulty text,
+  question text not null,
+  answer text not null,
+  created_at timestamp with time zone default now()
+);
+
+-- Requested topics table
+create table if not exists requested_topics (
+  id uuid primary key default gen_random_uuid(),
+  searchTerm text not null,
+  learningGoal text not null,
+  created_at timestamp with time zone default now(),
+  unique(searchTerm, learningGoal)
+);
+```
+
+### Improved Error Handling
+
+The API functions now include enhanced error handling:
+
+- **Schema Mismatch Detection**: Automatically detects column name mismatches and provides clear error messages
+- **User-Friendly Errors**: Frontend displays helpful messages instead of technical database errors
+- **Detailed Logging**: Console logs include full Supabase error objects for debugging
+- **Graceful Fallbacks**: Functions handle errors gracefully without breaking the UI
+
+#### Error Message Examples
+
+- If a query fails due to column mismatch: `"Supabase query failed. Check that column names match the schema (searchTerm, learningGoal)."`
+- User-facing error: `"Database schema mismatch detected. Please contact support."`
+- Generic fallback: `"Failed to fetch videos. Please try again."`
+
+### Migration Notes
+
+The project includes a migration (`20250921190700_unify_column_naming_camelcase.sql`) that:
+- Renames existing `search_term` columns to `searchTerm`
+- Renames existing `learning_goal` columns to `learningGoal`
+- Updates indexes to use the new column names
+- Provides verification and rollback instructions
 
 ## Video Progress Tracking & Quiz System
 

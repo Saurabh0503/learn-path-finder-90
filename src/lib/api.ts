@@ -2,8 +2,8 @@ import { supabase } from './supabaseClient';
 
 export interface Video {
   id: string;
-  search_term: string;
-  learning_goal: string;
+  searchTerm: string;
+  learningGoal: string;
   title: string;
   url: string;
   summary: string;
@@ -15,8 +15,8 @@ export interface Video {
 
 export interface Quiz {
   video_id: string;
-  search_term: string;
-  learning_goal: string;
+  searchTerm: string;
+  learningGoal: string;
   title: string;
   url: string;
   level: string;
@@ -37,38 +37,60 @@ export interface RequestedTopic {
  * Fetch videos from Supabase filtered by search term and learning goal
  */
 export async function getVideos(searchTerm: string, learningGoal: string): Promise<Video[]> {
-  const { data, error } = await supabase
-    .from('videos')
-    .select('*')
-    .eq('search_term', searchTerm.toLowerCase())
-    .eq('learning_goal', learningGoal.toLowerCase())
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('searchTerm', searchTerm.toLowerCase())
+      .eq('learningGoal', learningGoal.toLowerCase())
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching videos:', error);
-    throw new Error(`Failed to fetch videos: ${error.message}`);
+    if (error) {
+      console.error('Supabase error fetching videos:', error);
+      
+      // Check for schema mismatch errors
+      if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        throw new Error('Supabase query failed. Check that column names match the schema (searchTerm, learningGoal).');
+      }
+      
+      throw new Error(`Failed to fetch videos: ${error.message}`);
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error in getVideos:', error);
+    throw error;
   }
-
-  return data || [];
 }
 
 /**
  * Fetch quizzes from Supabase filtered by search term and learning goal
  */
 export async function getQuizzes(searchTerm: string, learningGoal: string): Promise<Quiz[]> {
-  const { data, error } = await supabase
-    .from('quizzes')
-    .select('*')
-    .eq('search_term', searchTerm.toLowerCase())
-    .eq('learning_goal', learningGoal.toLowerCase())
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('quizzes')
+      .select('*')
+      .eq('searchTerm', searchTerm.toLowerCase())
+      .eq('learningGoal', learningGoal.toLowerCase())
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching quizzes:', error);
-    throw new Error(`Failed to fetch quizzes: ${error.message}`);
+    if (error) {
+      console.error('Supabase error fetching quizzes:', error);
+      
+      // Check for schema mismatch errors
+      if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        throw new Error('Supabase query failed. Check that column names match the schema (searchTerm, learningGoal).');
+      }
+      
+      throw new Error(`Failed to fetch quizzes: ${error.message}`);
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error in getQuizzes:', error);
+    throw error;
   }
-
-  return data || [];
 }
 
 /**
@@ -143,20 +165,25 @@ export async function removeRequestedTopic(id: string): Promise<void> {
  * Mark video as completed in user_progress table
  */
 export async function markVideoCompleted(userId: string, videoUrl: string): Promise<void> {
-  const { error } = await supabase
-    .from('user_progress')
-    .upsert({
-      user_id: userId,
-      video_url: videoUrl,
-      completed: true,
-      completed_at: new Date().toISOString()
-    }, {
-      onConflict: 'user_id,video_url'
-    });
+  try {
+    const { error } = await supabase
+      .from('user_progress')
+      .upsert({
+        user_id: userId,
+        video_url: videoUrl,
+        completed: true,
+        completed_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,video_url'
+      });
 
-  if (error) {
-    console.error('Error marking video as completed:', error);
-    throw new Error(`Failed to mark video as completed: ${error.message}`);
+    if (error) {
+      console.error('Supabase error marking video as completed:', error);
+      throw new Error(`Failed to mark video as completed: ${error.message}`);
+    }
+  } catch (error: any) {
+    console.error('Error in markVideoCompleted:', error);
+    throw error;
   }
 }
 
@@ -164,46 +191,62 @@ export async function markVideoCompleted(userId: string, videoUrl: string): Prom
  * Get quizzes for a specific video by URL, search term, and learning goal
  */
 export async function getQuizzesByVideo(videoUrl: string, searchTerm?: string, learningGoal?: string): Promise<Quiz[]> {
-  let query = supabase
-    .from('quizzes')
-    .select('*')
-    .eq('url', videoUrl)
-    .limit(6);
+  try {
+    let query = supabase
+      .from('quizzes')
+      .select('*')
+      .eq('url', videoUrl)
+      .limit(6);
 
-  if (searchTerm) {
-    query = query.eq('search_term', searchTerm.toLowerCase());
+    if (searchTerm) {
+      query = query.eq('searchTerm', searchTerm.toLowerCase());
+    }
+
+    if (learningGoal) {
+      query = query.eq('learningGoal', learningGoal.toLowerCase());
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase error fetching quizzes by video:', error);
+      
+      // Check for schema mismatch errors
+      if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        throw new Error('Supabase query failed. Check that column names match the schema (searchTerm, learningGoal).');
+      }
+      
+      throw new Error(`Failed to fetch quizzes: ${error.message}`);
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error in getQuizzesByVideo:', error);
+    throw error;
   }
-
-  if (learningGoal) {
-    query = query.eq('learning_goal', learningGoal.toLowerCase());
-  }
-
-  const { data, error } = await query.order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching quizzes by video:', error);
-    throw new Error(`Failed to fetch quizzes: ${error.message}`);
-  }
-
-  return data || [];
 }
 
 /**
  * Check if a video is completed by the user
  */
 export async function isVideoCompleted(userId: string, videoUrl: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('user_progress')
-    .select('completed')
-    .eq('user_id', userId)
-    .eq('video_url', videoUrl)
-    .eq('completed', true)
-    .limit(1);
+  try {
+    const { data, error } = await supabase
+      .from('user_progress')
+      .select('completed')
+      .eq('user_id', userId)
+      .eq('video_url', videoUrl)
+      .eq('completed', true)
+      .limit(1);
 
-  if (error) {
-    console.error('Error checking video completion:', error);
+    if (error) {
+      console.error('Supabase error checking video completion:', error);
+      return false;
+    }
+
+    return (data?.length || 0) > 0;
+  } catch (error: any) {
+    console.error('Error in isVideoCompleted:', error);
     return false;
   }
-
-  return (data?.length || 0) > 0;
 }

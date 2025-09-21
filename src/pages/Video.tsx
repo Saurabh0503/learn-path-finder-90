@@ -64,11 +64,17 @@ const Video = () => {
       const learningGoal = location.state?.learningGoal;
       const fetchedQuizzes = await getQuizzesByVideo(videoUrl, searchTerm, learningGoal);
       setQuizzes(fetchedQuizzes);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading quizzes:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error.message?.includes('schema') 
+        ? "Database schema mismatch detected. Please contact support."
+        : "Failed to load quizzes. Please try again.";
+      
       toast({
         title: "Error",
-        description: "Failed to load quizzes. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -180,7 +186,6 @@ const Video = () => {
           <div className="lg:col-span-2 space-y-6">
             <Card className="border-0 shadow-card overflow-hidden">
               <div className="aspect-video">
-                {console.log("🎥 Embedding videoId:", video.id)}
                 <iframe
                   src={`https://www.youtube.com/embed/${video.id}?rel=0`}
                   title={video.title}
