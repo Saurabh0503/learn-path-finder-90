@@ -140,11 +140,11 @@ export async function removeRequestedTopic(id: string): Promise<void> {
 }
 
 /**
- * Mark video as completed in progress table
+ * Mark video as completed in user_progress table
  */
 export async function markVideoCompleted(userId: string, videoUrl: string): Promise<void> {
   const { error } = await supabase
-    .from('progress')
+    .from('user_progress')
     .upsert({
       user_id: userId,
       video_url: videoUrl,
@@ -193,7 +193,7 @@ export async function getQuizzesByVideo(videoUrl: string, searchTerm?: string, l
  */
 export async function isVideoCompleted(userId: string, videoUrl: string): Promise<boolean> {
   const { data, error } = await supabase
-    .from('progress')
+    .from('user_progress')
     .select('completed')
     .eq('user_id', userId)
     .eq('video_url', videoUrl)

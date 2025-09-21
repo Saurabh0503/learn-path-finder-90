@@ -158,7 +158,7 @@ The frontend now connects directly to Supabase instead of using n8n webhooks for
 - **`videos`:** Stores processed YouTube videos with metadata and summaries
 - **`quizzes`:** Contains generated quiz questions for each video
 - **`requested_topics`:** Queue of user-requested topics for future processing
-- **`progress`:** Tracks video completion status for users to unlock quizzes
+- **`user_progress`:** Tracks video completion status and quiz scores for users
 
 ### User Experience
 
@@ -217,42 +217,52 @@ The local workflow refreshes your Supabase database immediately, making new lear
 
 The application includes a comprehensive video completion tracking system that unlocks quizzes for completed videos.
 
-### Progress Table Schema
+### User Progress Table Schema
 
-The `progress` table must exist in your Supabase database with the following structure:
+The project uses the existing `user_progress` table for tracking video completion. The table has been extended to support video URL tracking:
 
 ```sql
-create table if not exists progress (
+-- Core user_progress table structure
+create table if not exists user_progress (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  video_url text not null,
+  course_id uuid references courses(id) on delete cascade,
+  video_id text, -- YouTube video ID (11 characters)
+  video_url text, -- Full YouTube URL for completion tracking
   completed boolean default false,
-  completed_at timestamp with time zone default now(),
+  completed_at timestamp with time zone,
+  quiz_score integer,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
 
--- Create unique constraint to prevent duplicate entries
-alter table progress add constraint unique_user_video unique (user_id, video_url);
+-- Indexes for performance
+create index if not exists idx_user_progress_user_id on user_progress(user_id);
+create index if not exists idx_user_progress_video_url on user_progress(video_url);
+create index if not exists idx_user_progress_user_video_url on user_progress(user_id, video_url);
+
+-- Constraint to ensure either video_id or video_url is present
+alter table user_progress add constraint check_video_identifier 
+  check (video_id is not null or video_url is not null);
 
 -- Enable Row Level Security (RLS)
-alter table progress enable row level security;
+alter table user_progress enable row level security;
 
--- Create RLS policies
-create policy "Users can view their own progress" on progress
+-- RLS policies (if not already present)
+create policy "Users can view their own progress" on user_progress
   for select using (auth.uid() = user_id);
 
-create policy "Users can insert their own progress" on progress
+create policy "Users can insert their own progress" on user_progress
   for insert with check (auth.uid() = user_id);
 
-create policy "Users can update their own progress" on progress
+create policy "Users can update their own progress" on user_progress
   for update using (auth.uid() = user_id);
 ```
 
 ### How Video Completion Works
 
 1. **Mark as Completed Button**: Users can mark videos as completed below the video player
-2. **Progress Tracking**: Completion status is stored in the `progress` table with user ID and video URL
+2. **Progress Tracking**: Completion status is stored in the `user_progress` table with user ID and video URL
 3. **Quiz Unlocking**: Once marked as completed, quizzes become available for that specific video
 4. **State Management**: React state automatically refreshes to show unlocked quizzes
 5. **Persistent Storage**: Completion status persists across sessions and page reloads
