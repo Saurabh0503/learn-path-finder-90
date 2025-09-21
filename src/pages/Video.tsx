@@ -132,7 +132,7 @@ const Video = () => {
     setCompletingVideo(true);
 
     try {
-      // Mark video as completed in the progress table
+      // Mark video as completed in the user_progress table
       await markVideoCompleted(currentUser.id, videoUrl);
 
       // Also mark in the existing user_progress table if courseId exists

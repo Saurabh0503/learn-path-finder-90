@@ -219,45 +219,52 @@ The application includes a comprehensive video completion tracking system that u
 
 ### User Progress Table Schema
 
-The project uses the existing `user_progress` table for tracking video completion. The table has been extended to support video URL tracking:
+The project uses the `user_progress` table for tracking video completion. The table schema ensures uniqueness per user/video pair:
 
 ```sql
 -- Core user_progress table structure
 create table if not exists user_progress (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  course_id uuid references courses(id) on delete cascade,
-  video_id text, -- YouTube video ID (11 characters)
-  video_url text, -- Full YouTube URL for completion tracking
+  video_url text not null,
   completed boolean default false,
-  completed_at timestamp with time zone,
-  quiz_score integer,
+  completed_at timestamp with time zone default now(),
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
 
+-- Uniqueness constraint for user_id + video_url
+alter table user_progress
+  add constraint if not exists user_video_unique unique (user_id, video_url);
+
 -- Indexes for performance
 create index if not exists idx_user_progress_user_id on user_progress(user_id);
 create index if not exists idx_user_progress_video_url on user_progress(video_url);
-create index if not exists idx_user_progress_user_video_url on user_progress(user_id, video_url);
-
--- Constraint to ensure either video_id or video_url is present
-alter table user_progress add constraint check_video_identifier 
-  check (video_id is not null or video_url is not null);
+create index if not exists idx_user_progress_completed on user_progress(completed);
 
 -- Enable Row Level Security (RLS)
 alter table user_progress enable row level security;
 
--- RLS policies (if not already present)
-create policy "Users can view their own progress" on user_progress
-  for select using (auth.uid() = user_id);
+-- RLS policies
+create policy if not exists "Users can insert their own progress"
+  on user_progress for insert
+  with check (auth.uid() = user_id);
 
-create policy "Users can insert their own progress" on user_progress
-  for insert with check (auth.uid() = user_id);
+create policy if not exists "Users can view their own progress"
+  on user_progress for select
+  using (auth.uid() = user_id);
 
-create policy "Users can update their own progress" on user_progress
-  for update using (auth.uid() = user_id);
+create policy if not exists "Users can update their own progress"
+  on user_progress for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 ```
+
+**Key Features:**
+- **Uniqueness**: The `user_video_unique` constraint ensures each user can have only one progress record per video URL
+- **Video URL Tracking**: Uses full YouTube URLs (e.g., `https://www.youtube.com/watch?v=VIDEO_ID`) for completion tracking
+- **Upsert Support**: API functions use upserts with `user_id + video_url` to handle duplicate entries gracefully
+- **Row Level Security**: Users can only access their own progress records
 
 ### How Video Completion Works
 
