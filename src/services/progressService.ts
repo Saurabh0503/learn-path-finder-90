@@ -7,6 +7,55 @@ export async function getCurrentUser() {
   return data.user;
 }
 
+/**
+ * markVideoCompleted(videoId)
+ * - Marks the given video as completed for the currently logged-in user.
+ * - Returns { data, error } from Supabase.
+ */
+export async function markVideoCompleted(videoId: string) {
+  const userResp = await supabase.auth.getUser();
+  const user = userResp?.data?.user;
+  if (!user) {
+    return { error: { message: "Not authenticated" } };
+  }
+
+  const payload = {
+    user_id: user.id,
+    video_id: videoId,
+    completed: true,
+    completed_at: new Date().toISOString(),
+  };
+
+  const res = await supabase
+    .from("user_progress")
+    .upsert(payload, { onConflict: ["user_id", "video_id"] });
+
+  return res;
+}
+
+/**
+ * getCompletedVideoIdsForUser(videoIds[])
+ * - Returns an array of video_id strings that are marked completed for the current user.
+ */
+export async function getCompletedVideoIdsForUser(videoIds = []) {
+  const userResp = await supabase.auth.getUser();
+  const user = userResp?.data?.user;
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("user_progress")
+    .select("video_id")
+    .in("video_id", videoIds)
+    .eq("user_id", user.id)
+    .eq("completed", true);
+
+  if (error) {
+    console.error("Error fetching user progress:", error);
+    return [];
+  }
+  return (data || []).map((r) => r.video_id);
+}
+
 // 1. Enroll in a Course
 export async function enrollInCourse(courseId: string) {
   const user = await getCurrentUser();

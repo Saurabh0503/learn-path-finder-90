@@ -1,6 +1,7 @@
 import { getVideos, getQuizzes } from '../lib/api.js';
 import { normalizeTopicPair } from '../utils/normalizeInput.js';
 import { supabase } from "@/lib/supabaseClient";
+import { getCompletedVideoIdsForUser, markVideoCompleted } from "@/services/progressService";
 import { safeString, safeVideoNormalize, videoDefaults } from '../utils/safeString.js';
 
 // Normalizer (matches backend logic)
@@ -187,12 +188,26 @@ async function callGenerationEdgeFunction(searchTerm: string, learningGoal: stri
     
     // Fix: Normalize response from learning_path to videos
     if (data && data.learning_path) {
-      const normalizedData = {
-        ...data,
-        videos: data.learning_path
-      };
-      console.log("🎥 Normalized videos for UI:", normalizedData.videos);
-      return normalizedData;
+      const raw = data;
+      const videos = (raw?.learning_path || []).map((v) => ({
+        id: v.id || (v.url ? v.url.split("v=")[1] : undefined) || v.url,
+        title: v.title,
+        url: v.url,
+        channel: v.channel,
+        thumbnail: v.thumbnail,
+        summary: v.summary,
+        quizzes: v.quizzes || [],
+        score: v.score ?? null,
+        rank: v.rank ?? null,
+      }));
+
+      // fetch which of these are completed for the current user
+      const videoIds = videos.map((v) => v.id).filter(Boolean);
+      const completedIds = await getCompletedVideoIdsForUser(videoIds);
+      const normalized = videos.map((v) => ({ ...v, completed: completedIds.includes(v.id) }));
+
+      console.log("🎥 Normalized videos for UI:", normalized);
+      return { ...data, videos: normalized };
     }
     
     return data;
@@ -270,12 +285,26 @@ export async function generateLearningPath(searchTerm: string, learningGoal: str
     
     // Fix: Normalize response from learning_path to videos
     if (data && data.learning_path) {
-      const normalizedData = {
-        ...data,
-        videos: data.learning_path
-      };
-      console.log("🎥 Normalized videos for UI:", normalizedData.videos);
-      return normalizedData;
+      const raw = data;
+      const videos = (raw?.learning_path || []).map((v) => ({
+        id: v.id || (v.url ? v.url.split("v=")[1] : undefined) || v.url,
+        title: v.title,
+        url: v.url,
+        channel: v.channel,
+        thumbnail: v.thumbnail,
+        summary: v.summary,
+        quizzes: v.quizzes || [],
+        score: v.score ?? null,
+        rank: v.rank ?? null,
+      }));
+
+      // fetch which of these are completed for the current user
+      const videoIds = videos.map((v) => v.id).filter(Boolean);
+      const completedIds = await getCompletedVideoIdsForUser(videoIds);
+      const normalized = videos.map((v) => ({ ...v, completed: completedIds.includes(v.id) }));
+
+      console.log("🎥 Normalized videos for UI:", normalized);
+      return { ...data, videos: normalized };
     }
     
     return data;
