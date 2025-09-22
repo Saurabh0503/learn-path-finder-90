@@ -52,7 +52,7 @@ import { supabase } from '../../lib/supabaseClient' // Single shared instance!
 
 ### 3. **Edge Function Isolation**
 
-**Updated `supabase/functions/generateLearningPath/index.ts`:**
+**Updated `supabase/functions/super-task/index.ts`:**
 ```typescript
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { storageKey: 'supabase.auth.edge' }  // Unique storage key
@@ -128,7 +128,7 @@ src/
 │   └── AuthContext.tsx        # ✅ Uses shared client
 
 supabase/functions/
-└── generateLearningPath/
+└── super-task/
     └── index.ts               # ✅ Isolated client with unique storageKey
 ```
 

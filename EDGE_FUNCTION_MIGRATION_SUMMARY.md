@@ -24,7 +24,7 @@ Successfully migrated LearnHub's dynamic learning path generation from a Lovable
 
 ### 🆕 New Files Created
 
-1. **`supabase/functions/generateLearningPath/index.ts`**
+1. **`supabase/functions/super-task/index.ts`**
    - Supabase Edge Function for dynamic generation
    - Handles CORS, input validation, and error handling
    - Integrates with shared core logic
@@ -69,6 +69,9 @@ Successfully migrated LearnHub's dynamic learning path generation from a Lovable
 
 1. **`api/generateLearningPath.js`**
    - Old Lovable API endpoint (no longer needed)
+
+2. **`supabase/functions/generateLearningPath/`**
+   - Replaced by `supabase/functions/super-task/`
 
 ## 🔧 Key Features Implemented
 
