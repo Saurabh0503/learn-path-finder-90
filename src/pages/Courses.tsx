@@ -46,10 +46,12 @@ const Courses = () => {
       }
     }
 
+    console.log("➡️ loadVideos called with:", { topic, goal, forceRefresh });
     setLoading(true);
     try {
       console.log("📡 About to call fetchVideos with:", { topic, goal, forceRefresh });
       const response = await fetchVideos({ topic, goal });
+      console.log("✅ fetchVideos result returned to Courses:", response);
       console.log("✅ Data received from super-task:", response);
       setVideos(response.videos);
       // Cache the fetched videos

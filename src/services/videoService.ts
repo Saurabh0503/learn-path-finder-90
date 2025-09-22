@@ -73,6 +73,8 @@ interface FetchVideosResponse {
 }
 
 export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<FetchVideosResponse> => {
+  console.log("🔍 fetchVideos called with:", { topic, goal });
+  
   if (!topic) {
     throw new Error("Topic is required");
   }
@@ -143,20 +145,32 @@ export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<F
 const SUPER_TASK_URL = "https://csrggvuucfyeaxdunrjy.supabase.co/functions/v1/super-task";
 
 async function callSuperTask(payload: any) {
-  const res = await fetch(SUPER_TASK_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzcmdndnV1Y2Z5ZWF4ZHVucmp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NTE4ODAsImV4cCI6MjA3MzUyNzg4MH0.Vzt39Inny0ZvsNBICr47HL_lXnK67zFa4ekYO2fguGE",
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    console.log("📡 Making fetch request to super-task with payload:", payload);
+    const res = await fetch(SUPER_TASK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzcmdndnV1Y2Z5ZWF4ZHVucmp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NTE4ODAsImV4cCI6MjA3MzUyNzg4MH0.Vzt39Inny0ZvsNBICr47HL_lXnK67zFa4ekYO2fguGE",
+      },
+      body: JSON.stringify(payload),
+    });
 
-  if (!res.ok) {
-    const text = await res.text().catch(()=>null);
-    throw new Error(`Super-task failed: ${res.status} ${res.statusText} ${text || ''}` );
+    console.log("📡 super-task response status:", res.status, res.statusText);
+
+    if (!res.ok) {
+      const text = await res.text().catch(()=>null);
+      console.error("❌ super-task failed:", { status: res.status, statusText: res.statusText, responseText: text });
+      throw new Error(`Super-task failed: ${res.status} ${res.statusText} ${text || ''}` );
+    }
+    
+    const data = await res.json();
+    console.log("✅ super-task success response:", data);
+    return data;
+  } catch (err) {
+    console.error("❌ Error in callSuperTask:", err);
+    throw err;
   }
-  return res.json();
 }
 
 /**
