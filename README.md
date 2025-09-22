@@ -227,11 +227,11 @@ LearnHub now supports **dynamic, on-demand learning path generation** powered by
 
 ### 🚀 Supabase Edge Function
 
-**Endpoint:** `POST /functions/v1/generateLearningPath`
+**Endpoint:** `POST /functions/v1/super-task`
 
 ```bash
 # Production endpoint
-curl -X POST https://csrggvuucfyeaxdunrjy.functions.supabase.co/generateLearningPath \
+curl -X POST https://csrggvuucfyeaxdunrjy.functions.supabase.co/super-task \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ANON_KEY" \
   -d '{
@@ -499,7 +499,7 @@ For detailed setup instructions, see [EDGE_FUNCTION_SETUP.md](./EDGE_FUNCTION_SE
 
 1. **Deploy Edge Function:**
    ```bash
-   supabase functions deploy generateLearningPath
+   supabase functions deploy super-task
    ```
 
 2. **Configure Environment Variables** in Supabase Dashboard:
@@ -510,7 +510,7 @@ For detailed setup instructions, see [EDGE_FUNCTION_SETUP.md](./EDGE_FUNCTION_SE
 
 3. **Test the Function:**
    ```bash
-   curl -X POST https://your-project.functions.supabase.co/generateLearningPath \
+   curl -X POST https://your-project.functions.supabase.co/super-task \
      -H "Content-Type: application/json" \
      -d '{"searchTerm":"python","learningGoal":"beginner"}'
    ```

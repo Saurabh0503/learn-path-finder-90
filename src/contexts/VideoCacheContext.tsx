@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { VideoData } from '@/services/videoService';
+import { safeLowerCase, safeTrim } from '@/utils/safeString';
 
 interface CacheKey {
   topic: string;
@@ -66,7 +67,7 @@ export const VideoCacheProvider = ({ children }: VideoCacheProviderProps) => {
   }, [cache]);
 
   const getCacheKey = (topic: string, goal: string): string => {
-    return `${topic.toLowerCase().trim()}-${goal.toLowerCase().trim()}`;
+    return `${safeTrim(safeLowerCase(topic))}-${safeTrim(safeLowerCase(goal))}`;
   };
 
   const getCachedVideos = (topic: string, goal: string): VideoData[] | null => {

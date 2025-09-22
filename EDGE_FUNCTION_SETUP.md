@@ -20,8 +20,8 @@ supabase link --project-ref csrggvuucfyeaxdunrjy
 ### 2. Deploy the Edge Function
 
 ```bash
-# Deploy the generateLearningPath function
-supabase functions deploy generateLearningPath
+# Deploy the super-task function
+supabase functions deploy super-task
 
 # Verify deployment
 supabase functions list
@@ -68,12 +68,12 @@ GROQ_API_KEY=your_groq_api_key_here
 
 ### Production Endpoint
 ```
-POST https://csrggvuucfyeaxdunrjy.functions.supabase.co/generateLearningPath
+POST https://csrggvuucfyeaxdunrjy.functions.supabase.co/super-task
 ```
 
 ### Local Development Endpoint
 ```
-POST http://localhost:54321/functions/v1/generateLearningPath
+POST http://localhost:54321/functions/v1/super-task
 ```
 
 ## 🧪 Testing the Edge Function
@@ -82,7 +82,7 @@ POST http://localhost:54321/functions/v1/generateLearningPath
 
 ```bash
 # Test the Edge Function
-curl -X POST https://csrggvuucfyeaxdunrjy.functions.supabase.co/generateLearningPath \
+curl -X POST https://csrggvuucfyeaxdunrjy.functions.supabase.co/super-task \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_ANON_KEY" \
   -d '{
@@ -130,10 +130,10 @@ curl -X POST https://csrggvuucfyeaxdunrjy.functions.supabase.co/generateLearning
 
 ```bash
 # Real-time logs
-supabase functions logs generateLearningPath --follow
+supabase functions logs super-task --follow
 
 # Recent logs
-supabase functions logs generateLearningPath
+supabase functions logs super-task
 ```
 
 ### Database Monitoring
@@ -198,7 +198,7 @@ supabase start
 supabase functions serve
 
 # Test locally
-curl -X POST http://localhost:54321/functions/v1/generateLearningPath \
+curl -X POST http://localhost:54321/functions/v1/super-task \
   -H "Content-Type: application/json" \
   -d '{
     "searchTerm": "react",

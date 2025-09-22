@@ -3,6 +3,27 @@ import { normalizeTopicPair } from '../utils/normalizeInput.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { safeString, safeVideoNormalize, videoDefaults } from '../utils/safeString.js';
 
+// Normalizer (matches backend logic)
+function normalizeInput(term: string, goal: string) {
+  const cleanTerm = (term || "").toLowerCase().trim();
+  const cleanGoal = (goal || "").toLowerCase().trim();
+
+  const goalMap: Record<string, string> = {
+    basic: "beginner",
+    starter: "beginner",
+    novice: "beginner",
+    intermediate: "intermediate",
+    mid: "intermediate",
+    advanced: "advanced",
+    expert: "advanced"
+  };
+
+  return {
+    searchTerm: cleanTerm,
+    learningGoal: goalMap[cleanGoal] || cleanGoal
+  };
+}
+
 // Helper function to extract valid YouTube video ID
 function extractVideoId(idOrUrl: string | undefined, thumbnail?: string): string {
   if (!idOrUrl) return "";
@@ -123,9 +144,9 @@ export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<F
  */
 async function callGenerationEdgeFunction(searchTerm: string, learningGoal: string): Promise<any> {
   try {
-    console.log(`📡 Calling Edge Function: generateLearningPath for ${searchTerm} + ${learningGoal}`);
+    console.log(`📡 Calling Edge Function: super-task for ${searchTerm} + ${learningGoal}`);
     
-    const { data, error } = await supabase.functions.invoke('generateLearningPath', {
+    const { data, error } = await supabase.functions.invoke('super-task', {
       body: {
         searchTerm,
         learningGoal
@@ -198,6 +219,29 @@ async function transformSupabaseVideosToResponse(supabaseVideos: any[], topic: s
   } catch (error) {
     console.error('Error transforming videos:', error);
     return { videos: [] };
+  }
+}
+
+export async function generateLearningPath(searchTerm: string, learningGoal: string) {
+  const normalized = normalizeInput(searchTerm, learningGoal);
+
+  try {
+    console.log("Invoking Edge Function: super-task", normalized);
+
+    const { data, error } = await supabase.functions.invoke("super-task", {
+      body: normalized
+    });
+
+    if (error) {
+      console.error("Supabase function error:", error);
+      throw new Error(error.message);
+    }
+
+    console.log("Function response:", data);
+    return data;
+  } catch (err: any) {
+    console.error("generateLearningPath failed:", err.message || err);
+    return { status: "error", message: err.message || "Unknown error" };
   }
 }
 

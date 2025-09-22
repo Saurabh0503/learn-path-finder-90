@@ -73,7 +73,7 @@ Successfully migrated LearnHub's dynamic learning path generation from a Lovable
 ## 🔧 Key Features Implemented
 
 ### 1. **Supabase Edge Function**
-- **Endpoint**: `POST /functions/v1/generateLearningPath`
+- **Endpoint**: `POST /functions/v1/super-task`
 - **Input**: `{ "searchTerm": "python", "learningGoal": "beginner" }`
 - **Output**: Status-based responses with generation results
 - **Features**: Input validation, normalization, error handling, logging
@@ -154,17 +154,17 @@ FROM videos GROUP BY "searchTerm", "learningGoal";
 ### Edge Function Logs
 ```bash
 # Real-time monitoring
-supabase functions logs generateLearningPath --follow
+supabase functions logs super-task --follow
 
 # Error investigation
-supabase functions logs generateLearningPath --level error
+supabase functions logs super-task --level error
 ```
 
 ## 🚀 Deployment Instructions
 
 ### 1. **Deploy Edge Function**
 ```bash
-supabase functions deploy generateLearningPath
+supabase functions deploy super-task
 ```
 
 ### 2. **Configure Environment Variables**
@@ -178,7 +178,7 @@ GROQ_API_KEY=your-groq-api-key (optional)
 
 ### 3. **Test Deployment**
 ```bash
-curl -X POST https://your-project.functions.supabase.co/generateLearningPath \
+curl -X POST https://your-project.functions.supabase.co/super-task \
   -H "Content-Type: application/json" \
   -d '{"searchTerm":"python","learningGoal":"beginner"}'
 ```
