@@ -184,6 +184,17 @@ async function callGenerationEdgeFunction(searchTerm: string, learningGoal: stri
     const data = await callSuperTask(payload);
 
     console.log(`✅ Edge Function response:`, data);
+    
+    // Fix: Normalize response from learning_path to videos
+    if (data && data.learning_path) {
+      const normalizedData = {
+        ...data,
+        videos: data.learning_path
+      };
+      console.log("🎥 Normalized videos for UI:", normalizedData.videos);
+      return normalizedData;
+    }
+    
     return data;
 
   } catch (error) {
@@ -256,6 +267,17 @@ export async function generateLearningPath(searchTerm: string, learningGoal: str
     const data = await callSuperTask(normalized);
 
     console.log("Function response:", data);
+    
+    // Fix: Normalize response from learning_path to videos
+    if (data && data.learning_path) {
+      const normalizedData = {
+        ...data,
+        videos: data.learning_path
+      };
+      console.log("🎥 Normalized videos for UI:", normalizedData.videos);
+      return normalizedData;
+    }
+    
     return data;
   } catch (err: any) {
     console.error("generateLearningPath failed:", err.message || err);
