@@ -4,6 +4,8 @@
 
 **URL**: https://lovable.dev/projects/56d1e286-7ba5-427f-9148-ea463b739ad1
 
+**Note**: Frontend calls the Supabase Edge Function /super-task using a hard-coded anon key. Replace this with NEXT_PUBLIC_SUPABASE_ANON_KEY in production.
+
 ## How can I edit this code?
 
 There are several ways of editing your application.

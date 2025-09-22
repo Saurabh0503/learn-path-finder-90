@@ -135,6 +135,26 @@ export async function requestTopic(searchTerm: string, learningGoal: string): Pr
   }
 }
 
+/* Standardized Supabase function fetch — replace existing function calls with this */
+const SUPER_TASK_URL = "https://csrggvuucfyeaxdunrjy.supabase.co/functions/v1/super-task";
+
+async function callSuperTask(payload: any) {
+  const res = await fetch(SUPER_TASK_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzcmdndnV1Y2Z5ZWF4ZHVucmp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NTE4ODAsImV4cCI6MjA3MzUyNzg4MH0.Vzt39Inny0ZvsNBICr47HL_lXnK67zFa4ekYO2fguGE",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(()=>null);
+    throw new Error(`Super-task failed: ${res.status} ${res.statusText} ${text || ''}` );
+  }
+  return res.json();
+}
+
 /**
  * Dynamic learning path generation - calls the API endpoint
  */
@@ -146,23 +166,13 @@ export async function generateLearningPath(searchTerm: string, learningGoal: str
   estimated_time?: string;
 }> {
   try {
-    const response = await fetch('/api/generateLearningPath', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        searchTerm: searchTerm.toLowerCase(),
-        learningGoal: learningGoal.toLowerCase()
-      })
-    });
+    const payload = {
+      searchTerm: searchTerm.toLowerCase(),
+      learningGoal: learningGoal.toLowerCase()
+    };
+    const response = await callSuperTask(payload);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `API request failed: ${response.status}`);
-    }
-
-    return await response.json();
+    return response;
   } catch (error: any) {
     console.error('Error generating learning path:', error);
     throw new Error(`Failed to generate learning path: ${error.message}`);

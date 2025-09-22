@@ -139,6 +139,26 @@ export const fetchVideos = async ({ topic, goal }: FetchVideosParams): Promise<F
   }
 };
 
+/* Standardized Supabase function fetch — replace existing function calls with this */
+const SUPER_TASK_URL = "https://csrggvuucfyeaxdunrjy.supabase.co/functions/v1/super-task";
+
+async function callSuperTask(payload: any) {
+  const res = await fetch(SUPER_TASK_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzcmdndnV1Y2Z5ZWF4ZHVucmp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NTE4ODAsImV4cCI6MjA3MzUyNzg4MH0.Vzt39Inny0ZvsNBICr47HL_lXnK67zFa4ekYO2fguGE",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(()=>null);
+    throw new Error(`Super-task failed: ${res.status} ${res.statusText} ${text || ''}` );
+  }
+  return res.json();
+}
+
 /**
  * Call the Supabase Edge Function for learning path generation
  */
@@ -146,17 +166,8 @@ async function callGenerationEdgeFunction(searchTerm: string, learningGoal: stri
   try {
     console.log(`📡 Calling Edge Function: super-task for ${searchTerm} + ${learningGoal}`);
     
-    const { data, error } = await supabase.functions.invoke('super-task', {
-      body: {
-        searchTerm,
-        learningGoal
-      }
-    });
-
-    if (error) {
-      console.error('Edge Function error:', error);
-      throw new Error(`Edge Function failed: ${error.message}`);
-    }
+    const payload = { searchTerm, learningGoal };
+    const data = await callSuperTask(payload);
 
     console.log(`✅ Edge Function response:`, data);
     return data;
@@ -228,14 +239,7 @@ export async function generateLearningPath(searchTerm: string, learningGoal: str
   try {
     console.log("Invoking Edge Function: super-task", normalized);
 
-    const { data, error } = await supabase.functions.invoke("super-task", {
-      body: normalized
-    });
-
-    if (error) {
-      console.error("Supabase function error:", error);
-      throw new Error(error.message);
-    }
+    const data = await callSuperTask(normalized);
 
     console.log("Function response:", data);
     return data;
