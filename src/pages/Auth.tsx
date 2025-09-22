@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, GraduationCap } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../../lib/supabaseClient";
 import { useToast } from "@/components/ui/use-toast";
 
 const Auth = () => {

@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import { normalizeTopicPair } from '../utils/normalizeInput.js';
 import { safeString, safeVideoNormalize, videoDefaults } from '../utils/safeString.js';
 

@@ -61,11 +61,13 @@ serve(async (req) => {
       )
     }
 
-    // Initialize Supabase client
+    // Initialize Supabase client with unique storage key for edge functions
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { storageKey: 'supabase.auth.edge' }
+    })
 
     console.log(`🔍 Edge Function: Checking for existing content: ${normalizedSearchTerm} + ${normalizedLearningGoal}`)
 

@@ -1,6 +1,6 @@
 import { getVideos, getQuizzes } from '../lib/api.js';
 import { normalizeTopicPair } from '../utils/normalizeInput.js';
-import { supabase } from '../lib/supabaseClient.js';
+import { supabase } from '../../lib/supabaseClient';
 import { safeString, safeVideoNormalize, videoDefaults } from '../utils/safeString.js';
 
 // Normalizer (matches backend logic)
