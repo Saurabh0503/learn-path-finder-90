@@ -13,10 +13,19 @@ export async function getCurrentUser() {
  * - Returns { data, error } from Supabase.
  */
 export async function markVideoCompleted(videoId: string) {
+  console.log("🔍 markVideoCompleted called with videoId:", videoId);
+
   const userResp = await supabase.auth.getUser();
   const user = userResp?.data?.user;
+
   if (!user) {
-    return { error: { message: "Not authenticated" } };
+    console.error("❌ markVideoCompleted failed: user not authenticated");
+    return { error: { message: "You must be logged in to mark progress." } };
+  }
+
+  if (!videoId) {
+    console.error("❌ markVideoCompleted failed: missing videoId");
+    return { error: { message: "Invalid video. Missing videoId." } };
   }
 
   const payload = {
@@ -26,11 +35,19 @@ export async function markVideoCompleted(videoId: string) {
     completed_at: new Date().toISOString(),
   };
 
-  const res = await supabase
+  console.log("📦 markVideoCompleted payload:", payload);
+
+  const { data, error } = await supabase
     .from("user_progress")
     .upsert(payload, { onConflict: ["user_id", "video_id"] });
 
-  return res;
+  if (error) {
+    console.error("❌ Supabase upsert error in markVideoCompleted:", error);
+    return { error };
+  }
+
+  console.log("✅ Video marked completed successfully:", data);
+  return { data };
 }
 
 /**

@@ -238,7 +238,11 @@ const Courses = () => {
                             const { data, error } = await markVideoCompleted(video.id);
                             if (error) {
                               console.error("Error marking completed:", error);
-                              toast({ title: "Error", description: error?.message || "Failed to mark completed." });
+                              toast({
+                                title: "Error",
+                                description: error.message || "Failed to mark video as completed.",
+                                variant: "destructive",
+                              });
                               return;
                             }
                             // Update local UI state
@@ -246,7 +250,11 @@ const Courses = () => {
                             toast({ title: "Marked completed", description: "Quizzes are now available for this video." });
                           } catch (err) {
                             console.error(err);
-                            toast({ title: "Error", description: "Failed to mark completed." });
+                            toast({
+                              title: "Error",
+                              description: "Failed to mark completed.",
+                              variant: "destructive",
+                            });
                           }
                         }}
                       >
