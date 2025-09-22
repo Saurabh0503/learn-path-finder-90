@@ -9,6 +9,7 @@ import { markVideoComplete, saveQuizScore } from "@/services/progressService";
 import { markVideoCompleted, getQuizzesByVideo, isVideoCompleted, Quiz } from "@/lib/api";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/use-toast";
+import { safeString, safeLowerCase, safeVideoNormalize, videoDefaults } from "@/utils/safeString";
 
 const Video = () => {
   const { videoId } = useParams();
@@ -22,11 +23,12 @@ const Video = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { toast } = useToast();
 
-  // Get video data from location state
-  const video = location.state?.video as VideoData;
-  const summary = location.state?.summary;
-  const quiz = location.state?.quiz;
-  const courseId = location.state?.courseId;
+  // Get video data from location state with safe defaults
+  const rawVideo = location.state?.video as VideoData;
+  const video = rawVideo ? safeVideoNormalize(rawVideo) : null;
+  const summary = safeString(location.state?.summary);
+  const quiz = Array.isArray(location.state?.quiz) ? location.state.quiz : videoDefaults.quizzes;
+  const courseId = safeString(location.state?.courseId);
   
   // videoId is now guaranteed to be a clean YouTube ID from videoService
   console.log("🎥 Embedding videoId:", videoId);
@@ -106,13 +108,17 @@ const Video = () => {
   const isAnswerSelected = (questionIndex: number, answerIndex: number) =>
     selectedAnswers[questionIndex] === answerIndex;
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
+  const getDifficultyColor = (difficulty?: string | null) => {
+    const safeDifficulty = safeLowerCase(difficulty);
+    switch (safeDifficulty) {
       case "beginner":
+      case "easy":
         return "bg-success/10 text-success border-success/20";
       case "intermediate":
+      case "medium":
         return "bg-warning/10 text-warning border-warning/20";
       case "advanced":
+      case "hard":
         return "bg-destructive/10 text-destructive border-destructive/20";
       default:
         return "bg-muted/10 text-muted-foreground border-muted/20";
@@ -187,8 +193,8 @@ const Video = () => {
             <Card className="border-0 shadow-card overflow-hidden">
               <div className="aspect-video">
                 <iframe
-                  src={`https://www.youtube.com/embed/${video.id}?rel=0`}
-                  title={video.title}
+                  src={`https://www.youtube.com/embed/${safeString(video?.id)}?rel=0`}
+                  title={safeString(video?.title) || 'Video'}
                   className="w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -262,24 +268,32 @@ const Video = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {quizzes.map((quiz, index) => (
-                      <div key={index} className="border rounded-lg p-4 bg-muted/20">
-                        <div className="flex items-start justify-between mb-3">
-                          <h4 className="font-medium text-sm">Question {index + 1}</h4>
-                          <Badge 
-                            variant="outline" 
-                            className={getDifficultyColor(quiz.difficulty)}
-                          >
-                            {quiz.difficulty}
-                          </Badge>
+                    {quizzes.map((quiz, index) => {
+                      const safeQuiz = {
+                        difficulty: safeString(quiz?.difficulty) || videoDefaults.difficulty,
+                        question: safeString(quiz?.question) || 'No question available',
+                        answer: safeString(quiz?.answer) || 'No answer available'
+                      };
+                      
+                      return (
+                        <div key={index} className="border rounded-lg p-4 bg-muted/20">
+                          <div className="flex items-start justify-between mb-3">
+                            <h4 className="font-medium text-sm">Question {index + 1}</h4>
+                            <Badge 
+                              variant="outline" 
+                              className={getDifficultyColor(safeQuiz.difficulty)}
+                            >
+                              {safeQuiz.difficulty}
+                            </Badge>
+                          </div>
+                          <p className="text-sm mb-3 leading-relaxed">{safeQuiz.question}</p>
+                          <div className="bg-muted/30 rounded-md p-3">
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Answer:</p>
+                            <p className="text-sm">{safeQuiz.answer}</p>
+                          </div>
                         </div>
-                        <p className="text-sm mb-3 leading-relaxed">{quiz.question}</p>
-                        <div className="bg-muted/30 rounded-md p-3">
-                          <p className="text-sm font-medium text-muted-foreground mb-1">Answer:</p>
-                          <p className="text-sm">{quiz.answer}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -291,15 +305,19 @@ const Video = () => {
             {/* Video Info */}
             <Card className="border-0 shadow-card">
               <CardHeader>
-                <CardTitle className="text-lg">{video.title}</CardTitle>
+                <CardTitle className="text-lg">
+                  {safeString(video?.title) || 'Untitled Video'}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-yellow-500" />
-                  <span className="text-sm text-muted-foreground">{video.channel}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {safeString(video?.channel) || 'Unknown Channel'}
+                  </span>
                 </div>
-                <Badge variant="outline" className={getDifficultyColor(video.difficulty)}>
-                  {video.difficulty}
+                <Badge variant="outline" className={getDifficultyColor(video?.difficulty)}>
+                  {safeString(video?.difficulty) || videoDefaults.level}
                 </Badge>
                 {summary && (
                   <div>

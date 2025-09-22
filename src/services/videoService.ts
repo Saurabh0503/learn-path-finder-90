@@ -1,6 +1,7 @@
 import { getVideos, getQuizzes } from '../lib/api.js';
 import { normalizeTopicPair } from '../utils/normalizeInput.js';
 import { supabase } from '../lib/supabaseClient.js';
+import { safeString, safeVideoNormalize, videoDefaults } from '../utils/safeString.js';
 
 // Helper function to extract valid YouTube video ID
 function extractVideoId(idOrUrl: string | undefined, thumbnail?: string): string {
@@ -153,34 +154,43 @@ async function transformSupabaseVideosToResponse(supabaseVideos: any[], topic: s
     // Fetch quizzes for these videos
     const supabaseQuizzes = await getQuizzes(topic, goal);
     
-    // Group quizzes by video URL
+    // Group quizzes by video URL with safe string handling
     const quizzesByUrl: { [url: string]: any[] } = {};
     supabaseQuizzes.forEach(quiz => {
-      if (!quizzesByUrl[quiz.url]) {
-        quizzesByUrl[quiz.url] = [];
+      const safeUrl = safeString(quiz?.url);
+      if (!safeUrl) return; // Skip quizzes without valid URLs
+      
+      if (!quizzesByUrl[safeUrl]) {
+        quizzesByUrl[safeUrl] = [];
       }
-      quizzesByUrl[quiz.url].push({
-        question: quiz.question,
-        options: [quiz.answer, "Option 2", "Option 3", "Option 4"], // Simplified for now
+      quizzesByUrl[safeUrl].push({
+        question: safeString(quiz?.question) || 'No question available',
+        options: [
+          safeString(quiz?.answer) || 'No answer available', 
+          "Option 2", 
+          "Option 3", 
+          "Option 4"
+        ], // Simplified for now
         correct: 0 // First option is always correct for now
       });
     });
     
-    // Transform Supabase data to match existing VideoData interface
+    // Transform Supabase data to match existing VideoData interface with safe defaults
     const normalizedVideos: VideoData[] = supabaseVideos.map((video, index) => {
-      const cleanId = extractVideoId(video.id, video.thumbnail) || video.id;
+      const safeVideo = safeVideoNormalize(video);
+      const cleanId = extractVideoId(safeVideo.id, safeVideo.thumbnail) || safeVideo.id;
       
       return {
         id: cleanId,
-        title: video.title,
-        thumbnail: video.thumbnail || `https://img.youtube.com/vi/${cleanId}/hqdefault.jpg`,
-        channel: video.channel,
-        difficulty: video.level,
+        title: safeVideo.title || videoDefaults.title,
+        thumbnail: safeVideo.thumbnail || `https://img.youtube.com/vi/${cleanId}/hqdefault.jpg`,
+        channel: safeVideo.channel || videoDefaults.channel,
+        difficulty: safeVideo.level || videoDefaults.level,
         rank: index + 1, // Simple ranking based on order
-        summary: video.summary,
-        quiz: quizzesByUrl[video.url] || []
+        summary: safeVideo.summary || videoDefaults.summary,
+        quiz: Array.isArray(quizzesByUrl[safeVideo.url]) ? quizzesByUrl[safeVideo.url] : videoDefaults.quizzes
       };
-    }).filter(v => v.id); // Filter out videos with invalid IDs
+    }).filter(v => safeString(v.id)); // Filter out videos with invalid IDs
     
     console.log(`✅ Loaded ${normalizedVideos.length} videos from Supabase for ${topic} (${goal})`);
     

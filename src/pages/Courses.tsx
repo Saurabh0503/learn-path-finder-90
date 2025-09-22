@@ -3,10 +3,10 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Clock, Star, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, Star, Users, RefreshCw } from "lucide-react";
 import { fetchVideos, VideoData } from "@/services/videoService";
-import { toast } from "@/hooks/use-toast";
 import { useVideoCache } from "@/contexts/VideoCacheContext";
+import { safeString, safeLowerCase } from "@/utils/safeString";
 
 // 🔑 helper to sanitize YouTube ID
 function extractVideoId(idOrUrl: string | undefined) {
@@ -26,7 +26,7 @@ const Courses = () => {
   const goal = searchParams.get("goal");
   
   // Generate a courseId based on topic and goal for progress tracking
-  const courseId = topic && goal ? `${topic.toLowerCase().replace(/\s+/g, '-')}-${goal.toLowerCase()}` : null;
+  const courseId = topic && goal ? `${safeLowerCase(topic).replace(/\s+/g, '-')}-${safeLowerCase(goal)}` : null;
 
   const loadVideos = async (forceRefresh = false) => {
     if (!topic || !goal) {
@@ -87,13 +87,17 @@ const Courses = () => {
     });
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
+  const getDifficultyColor = (difficulty?: string | null) => {
+    const safeDifficulty = safeLowerCase(difficulty);
+    switch (safeDifficulty) {
       case "beginner":
+      case "easy":
         return "bg-success/10 text-success border-success/20";
       case "intermediate":
+      case "medium":
         return "bg-warning/10 text-warning border-warning/20";
       case "advanced":
+      case "hard":
         return "bg-destructive/10 text-destructive border-destructive/20";
       default:
         return "bg-muted/10 text-muted-foreground border-muted/20";
