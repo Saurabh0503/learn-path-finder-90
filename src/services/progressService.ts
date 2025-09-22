@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 
 // Helper function to get current user
 export async function getCurrentUser() {

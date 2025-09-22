@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, Settings, BookOpen, Award, Mail, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { useEffect, useState } from "react";
 import { getOverallProgressStats } from "@/services/progressService";
 

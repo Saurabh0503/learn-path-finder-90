@@ -7,7 +7,7 @@ import { ArrowLeft, CheckCircle, Star, MessageCircle, BookOpen, Play, Lock } fro
 import { VideoData } from "@/services/videoService";
 import { markVideoComplete, saveQuizScore } from "@/services/progressService";
 import { markVideoCompleted, getQuizzesByVideo, isVideoCompleted, Quiz } from "@/lib/api";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/use-toast";
 import { safeString, safeLowerCase, safeVideoNormalize, videoDefaults } from "@/utils/safeString";
 
