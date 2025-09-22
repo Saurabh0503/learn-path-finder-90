@@ -30,7 +30,6 @@ export interface ProcessedVideo extends VideoData {
 
 export interface QuizData {
   video_id: string;
-  video_url: string;
   question: string;
   answer: string;
   difficulty: string;
@@ -305,7 +304,6 @@ Respond in JSON format:
         questions.forEach((q: any) => {
           allQuizzes.push({
             video_id: video.id,
-            video_url: video.url,
             question: q.question,
             answer: q.answer,
             difficulty: q.difficulty || 'medium'
@@ -335,14 +333,12 @@ function generateBasicQuizzes(video: ProcessedVideo, searchTerm: string, learnin
   return [
     {
       video_id: video.id,
-      video_url: video.url,
       question: `What is the main topic covered in "${video.title}"?`,
       answer: `${searchTerm} concepts and techniques for ${learningGoal} learners`,
       difficulty: 'easy'
     },
     {
       video_id: video.id,
-      video_url: video.url,
       question: `Who created the video "${video.title}"?`,
       answer: video.channel,
       difficulty: 'easy'
@@ -417,7 +413,6 @@ function flattenQuizzesFromLearningPath(
     searchTerm: searchTerm,
     learningGoal: learningGoal,
     video_id: quiz.video_id,
-    url: quiz.video_url,
     question: quiz.question,
     answer: quiz.answer,
     difficulty: quiz.difficulty,

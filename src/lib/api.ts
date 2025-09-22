@@ -301,17 +301,17 @@ export async function removeRequestedTopic(id: string): Promise<void> {
 /**
  * Mark video as completed in user_progress table
  */
-export async function markVideoCompleted(userId: string, videoUrl: string): Promise<void> {
+export async function markVideoCompleted(userId: string, videoId: string): Promise<void> {
   try {
     const { error } = await supabase
       .from('user_progress')
       .upsert({
         user_id: userId,
-        video_url: videoUrl,
+        video_id: videoId,
         completed: true,
         completed_at: new Date().toISOString()
       }, {
-        onConflict: 'user_id,video_url'
+        onConflict: 'user_id,video_id'
       });
 
     if (error) {
@@ -380,13 +380,13 @@ export async function getQuizzesByVideo(videoUrl: string, searchTerm?: string, l
 /**
  * Check if a video is completed by the user
  */
-export async function isVideoCompleted(userId: string, videoUrl: string): Promise<boolean> {
+export async function isVideoCompleted(userId: string, videoId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .from('user_progress')
       .select('completed')
       .eq('user_id', userId)
-      .eq('video_url', videoUrl)
+      .eq('video_id', videoId)
       .eq('completed', true)
       .limit(1);
 

@@ -543,20 +543,20 @@ The project uses the `user_progress` table for tracking video completion. The ta
 create table if not exists user_progress (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  video_url text not null,
+  video_id text not null,
   completed boolean default false,
   completed_at timestamp with time zone default now(),
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
 
--- Uniqueness constraint for user_id + video_url
+-- Uniqueness constraint for user_id + video_id
 alter table user_progress
-  add constraint if not exists user_video_unique unique (user_id, video_url);
+  add constraint if not exists user_video_unique unique (user_id, video_id);
 
 -- Indexes for performance
 create index if not exists idx_user_progress_user_id on user_progress(user_id);
-create index if not exists idx_user_progress_video_url on user_progress(video_url);
+create index if not exists idx_user_progress_video_id on user_progress(video_id);
 create index if not exists idx_user_progress_completed on user_progress(completed);
 
 -- Enable Row Level Security (RLS)
@@ -578,9 +578,9 @@ create policy if not exists "Users can update their own progress"
 ```
 
 **Key Features:**
-- **Uniqueness**: The `user_video_unique` constraint ensures each user can have only one progress record per video URL
-- **Video URL Tracking**: Uses full YouTube URLs (e.g., `https://www.youtube.com/watch?v=VIDEO_ID`) for completion tracking
-- **Upsert Support**: API functions use upserts with `user_id + video_url` to handle duplicate entries gracefully
+- **Uniqueness**: The `user_video_unique` constraint ensures each user can have only one progress record per video ID
+- **Video ID Tracking**: Uses YouTube video IDs (e.g., `dQw4w9WgXcQ`) for completion tracking
+- **Upsert Support**: API functions use upserts with `user_id + video_id` to handle duplicate entries gracefully
 - **Row Level Security**: Users can only access their own progress records
 
 ### How Video Completion Works

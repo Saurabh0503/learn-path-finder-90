@@ -36,6 +36,7 @@ export async function markVideoCompleted(videoId: string) {
   };
 
   console.log("📦 markVideoCompleted payload:", payload);
+  console.log("📦 Upserting progress with video_id:", payload.video_id);
 
   const { data, error } = await supabase
     .from("user_progress")
