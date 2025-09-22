@@ -303,7 +303,15 @@ export async function removeRequestedTopic(id: string): Promise<void> {
  */
 export async function markVideoCompleted(userId: string, videoId: string): Promise<void> {
   try {
-    const { error } = await supabase
+    // Debug log before calling Supabase
+    console.log("🎥 Final payload to Supabase:", {
+      user_id: userId,
+      video_id: videoId,
+      type: typeof videoId,
+      length: videoId?.length
+    });
+
+    const { data, error } = await supabase
       .from('user_progress')
       .upsert({
         user_id: userId,
@@ -313,6 +321,9 @@ export async function markVideoCompleted(userId: string, videoId: string): Promi
       }, {
         onConflict: 'user_id,video_id'
       });
+
+    // Success log after the upsert
+    console.log("✅ markVideoCompleted upsert result:", { data, error });
 
     if (error) {
       console.error('Supabase error marking video as completed:', error);
