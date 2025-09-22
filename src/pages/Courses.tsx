@@ -3,10 +3,11 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, BookOpen, Clock, Star, Users, RefreshCw } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, Star, Users, RefreshCw, Loader2, Play } from "lucide-react";
 import { fetchVideos, VideoData } from "@/services/videoService";
 import { useVideoCache } from "@/contexts/VideoCacheContext";
 import { safeString, safeLowerCase } from "@/utils/safeString";
+import { toast } from "@/components/ui/use-toast";
 
 // 🔑 helper to sanitize YouTube ID
 function extractVideoId(idOrUrl: string | undefined) {
@@ -16,6 +17,8 @@ function extractVideoId(idOrUrl: string | undefined) {
 }
 
 const Courses = () => {
+  console.log("🎬 Courses page mounted");
+  
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [videos, setVideos] = useState<VideoData[]>([]);
@@ -45,7 +48,9 @@ const Courses = () => {
 
     setLoading(true);
     try {
+      console.log("📡 About to call fetchVideos with:", { topic, goal, forceRefresh });
       const response = await fetchVideos({ topic, goal });
+      console.log("✅ Data received from super-task:", response);
       setVideos(response.videos);
       // Cache the fetched videos
       setCachedVideos(topic, goal, response.videos);
@@ -70,6 +75,7 @@ const Courses = () => {
   };
 
   useEffect(() => {
+    console.log("🔄 useEffect triggered with topic:", topic, "goal:", goal);
     loadVideos();
   }, [topic, goal, navigate]);
 
