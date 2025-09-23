@@ -323,7 +323,10 @@ export async function markVideoCompleted(userId: string, courseId: string, video
 
   const { data, error } = await supabase
     .from("user_progress")
-    .upsert(payload, { onConflict: "user_id,course_id,video_id" }) // ✅ UPSERT instead of insert
+    .upsert(payload, {
+      onConflict: ["user_id", "course_id", "video_id"], // ✅ correct way
+      ignoreDuplicates: false, // ensure update instead of skip
+    })
     .select();
 
   if (error) {
