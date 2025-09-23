@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ArrowLeft, CheckCircle, Star, MessageCircle, BookOpen, Play, Lock } from "lucide-react";
 import { VideoData } from "@/services/videoService";
 import { markVideoComplete, saveQuizScore, markVideoCompleted } from "@/services/progressService";
@@ -73,7 +74,19 @@ const Video = () => {
       const searchTerm = location.state?.searchTerm;
       const learningGoal = location.state?.learningGoal;
       const fetchedQuizzes = await getQuizzesByVideo(videoUrl, searchTerm, learningGoal);
-      setQuizzes(fetchedQuizzes);
+      
+      // Debug log raw fetched quizzes
+      console.log("🐛 Raw fetchedQuizzes:", fetchedQuizzes);
+      
+      // Normalize quiz data by flattening the questions array
+      const normalizedQuizzes = (fetchedQuizzes || [])
+        .flatMap((q: any) => (Array.isArray(q.questions) ? q.questions : q))
+        .filter(q => q && q.question && q.answer);
+      
+      // Debug log normalized results
+      console.log("✅ Normalized quizzes:", normalizedQuizzes);
+      
+      setQuizzes(normalizedQuizzes);
       console.log("✅ Quiz unlocked for video:", video?.id || videoId);
     } catch (error: any) {
       console.error('Error loading quizzes:', error);
@@ -261,58 +274,27 @@ const Video = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                     <p className="text-muted-foreground">Loading quizzes...</p>
                   </div>
-                ) : (() => {
-                  // Normalize quizzes from multiple sources
-                  const allQuizSources = [
-                    ...(quizzes || []), // From API call
-                    ...(video?.quizzes || []), // From video data if exists
-                    ...(quiz || []) // From location state
-                  ];
-                  
-                  const normalizedQuizzes = allQuizSources.flatMap((q: any) =>
-                    Array.isArray(q.questions) ? q.questions : q
-                  ).filter(q => q && (q.question || q.difficulty || q.answer)); // Filter out empty items
-                  
-                  console.log("✅ Normalized quizzes:", normalizedQuizzes);
-                  
-                  return normalizedQuizzes.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">
-                        No quizzes available for this video yet
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {normalizedQuizzes.map((quiz, index) => {
-                      const safeQuiz = {
-                        difficulty: safeString(quiz?.difficulty) || videoDefaults.difficulty,
-                        question: safeString(quiz?.question) || 'No question available',
-                        answer: safeString(quiz?.answer) || 'No answer available'
-                      };
-                      
-                      return (
-                        <div key={index} className="border rounded-lg p-4 bg-muted/20">
-                          <div className="flex items-start justify-between mb-3">
-                            <h4 className="font-medium text-sm">Question {index + 1}</h4>
-                            <Badge 
-                              variant="outline" 
-                              className={getDifficultyColor(safeQuiz.difficulty)}
-                            >
-                              {safeQuiz.difficulty}
-                            </Badge>
-                          </div>
-                          <p className="text-sm mb-3 leading-relaxed">{safeQuiz.question}</p>
-                          <div className="bg-muted/30 rounded-md p-3">
-                            <p className="text-sm font-medium text-muted-foreground mb-1">Answer:</p>
-                            <p className="text-sm">{safeQuiz.answer}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                ) : (
+                  <div>
+                    <h2 className="text-lg font-semibold mt-6 mb-2">📘 Quiz</h2>
+                    {quizzes.length === 0 ? (
+                      <p className="text-muted-foreground">No quizzes available for this video.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {quizzes.map((quiz, index) => (
+                          <Collapsible key={index}>
+                            <CollapsibleTrigger className="font-medium text-left w-full p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                              {quiz.question}
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="text-sm text-muted-foreground p-3 border-l-2 border-primary/20 ml-3 mt-2">
+                              {quiz.answer}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  );
-                })()}
+                )}
               </CardContent>
             </Card>
           </div>

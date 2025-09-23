@@ -265,7 +265,7 @@ const Courses = () => {
                             // Show success toast
                             toast({ 
                               title: "Video marked as completed!", 
-                              description: "Redirecting to video page to view unlocked quiz..." 
+                              description: "Redirecting to video page..." 
                             });
                             
                             // Redirect to video page to show unlocked quiz
@@ -295,33 +295,6 @@ const Courses = () => {
                         {isCompleted ? "Completed ✅" : "Mark as completed"}
                       </Button>
                     </div>
-
-                    {/* Show quizzes ONLY after completion */}
-                    {isCompleted && Array.isArray(video.quizzes) && video.quizzes.length > 0 && (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="font-semibold mb-3">Quizzes</h4>
-                        <div className="space-y-3">
-                          {video.quizzes.map((q, qi) => (
-                            <div key={qi} className="p-3 border rounded-lg bg-muted/20">
-                              <div className="flex items-center justify-between mb-2">
-                                <Badge variant="outline" className="text-xs">
-                                  {q.difficulty}
-                                </Badge>
-                              </div>
-                              <div className="font-medium text-sm mb-2">{q.question}</div>
-                              <details className="text-sm">
-                                <summary className="cursor-pointer text-primary hover:underline">
-                                  Show answer
-                                </summary>
-                                <div className="mt-2 p-2 bg-background rounded border">
-                                  {q.answer}
-                                </div>
-                              </details>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               );
