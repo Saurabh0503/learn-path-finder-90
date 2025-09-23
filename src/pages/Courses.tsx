@@ -248,7 +248,7 @@ const Courses = () => {
                             }
 
                             // Mark video as completed using centralized function
-                            const { data, error } = await markVideoCompleted(video.id);
+                            const { data, error } = await markVideoCompleted(video.id, courseId);
                             if (error) {
                               console.error("Error marking completed:", error);
                               toast({

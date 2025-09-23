@@ -10,12 +10,12 @@ export async function getCurrentUser() {
 }
 
 /**
- * markVideoCompleted(videoId)
+ * markVideoCompleted(videoId, courseId?)
  * - Marks the given video as completed for the currently logged-in user.
  * - Returns { data, error } from Supabase.
  */
-export async function markVideoCompleted(videoId: string) {
-  console.log("🔍 markVideoCompleted called with videoId:", videoId);
+export async function markVideoCompleted(videoId: string, courseId?: string) {
+  console.log("🔍 markVideoCompleted called with:", { videoId, courseId });
 
   const userResp = await supabase.auth.getUser();
   const user = userResp?.data?.user;
@@ -30,19 +30,44 @@ export async function markVideoCompleted(videoId: string) {
     return { error: { message: "Invalid video. Missing videoId." } };
   }
 
-  const payload = {
+  const payload: any = {
     user_id: user.id,
     video_id: videoId,
     completed: true,
     completed_at: new Date().toISOString(),
   };
 
-  console.log("📦 markVideoCompleted payload:", payload);
-  console.log("📦 Upserting progress with video_id:", payload.video_id);
+  // Add course_id if provided
+  if (courseId) {
+    payload.course_id = courseId;
+  }
+
+  // Debug log with type and length validation
+  console.log("📦 Final payload to Supabase:", {
+    user_id: payload.user_id,
+    course_id: payload.course_id,
+    video_id: payload.video_id,
+    types: {
+      course_id: typeof payload.course_id,
+      video_id: typeof payload.video_id
+    },
+    lengths: {
+      course_id: payload.course_id?.length,
+      video_id: payload.video_id?.length
+    }
+  });
+
+  // Determine conflict resolution based on whether course_id is provided
+  const onConflict = courseId 
+    ? ["user_id", "course_id", "video_id"] 
+    : ["user_id", "video_id"];
 
   const { data, error } = await supabase
     .from("user_progress")
-    .upsert(payload, { onConflict: ["user_id", "video_id"] });
+    .upsert(payload, { onConflict });
+
+  // Log both data and error after upsert
+  console.log("✅ markVideoCompleted upsert result:", { data, error });
 
   if (error) {
     console.error("❌ Supabase upsert error in markVideoCompleted:", error);
@@ -290,7 +315,11 @@ export async function markVideoWithProgress(userId: string, video: Video) {
     
     // Step 2: Mark video as completed for user
     console.log("📝 Step 2: Marking video as completed...");
-    const result = await markVideoCompleted(video.id);
+    // Generate courseId from video's searchTerm and learningGoal
+    const courseId = video.searchTerm && video.learningGoal 
+      ? `${video.searchTerm.toLowerCase().replace(/\s+/g, '-')}-${video.learningGoal.toLowerCase()}`
+      : undefined;
+    const result = await markVideoCompleted(video.id, courseId);
     console.log("✅ Step 2 complete: Video marked as completed");
     
     return result;

@@ -156,7 +156,7 @@ const Video = () => {
 
     try {
       // Mark video as completed in the user_progress table
-      await markVideoCompleted(video?.id || videoId || '');
+      await markVideoCompleted(video?.id || videoId || '', courseId);
 
       // Also mark in the existing user_progress table if courseId exists
       if (video?.id && courseId) {

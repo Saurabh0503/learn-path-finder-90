@@ -15,6 +15,13 @@ export interface Video {
   created_at: string;
 }
 
+export interface Course {
+  id: string; // Course slug like "python-beginner"
+  title: string;
+  description: string;
+  created_at: string;
+}
+
 export interface Quiz {
   video_id: string;
   searchTerm: string;
