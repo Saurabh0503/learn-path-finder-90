@@ -261,16 +261,30 @@ const Video = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                     <p className="text-muted-foreground">Loading quizzes...</p>
                   </div>
-                ) : quizzes.length === 0 ? (
-                  <div className="text-center py-8">
-                    <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">
-                      No quizzes available for this video yet
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {quizzes.map((quiz, index) => {
+                ) : (() => {
+                  // Normalize quizzes from multiple sources
+                  const allQuizSources = [
+                    ...(quizzes || []), // From API call
+                    ...(video?.quizzes || []), // From video data if exists
+                    ...(quiz || []) // From location state
+                  ];
+                  
+                  const normalizedQuizzes = allQuizSources.flatMap((q: any) =>
+                    Array.isArray(q.questions) ? q.questions : q
+                  ).filter(q => q && (q.question || q.difficulty || q.answer)); // Filter out empty items
+                  
+                  console.log("✅ Normalized quizzes:", normalizedQuizzes);
+                  
+                  return normalizedQuizzes.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">
+                        No quizzes available for this video yet
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {normalizedQuizzes.map((quiz, index) => {
                       const safeQuiz = {
                         difficulty: safeString(quiz?.difficulty) || videoDefaults.difficulty,
                         question: safeString(quiz?.question) || 'No question available',
@@ -297,7 +311,8 @@ const Video = () => {
                       );
                     })}
                   </div>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
