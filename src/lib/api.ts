@@ -308,38 +308,31 @@ export async function removeRequestedTopic(id: string): Promise<void> {
 /**
  * Mark video as completed in user_progress table
  */
-export async function markVideoCompleted(userId: string, videoId: string): Promise<void> {
-  try {
-    // Debug log before calling Supabase
-    console.log("🎥 Final payload to Supabase:", {
-      user_id: userId,
-      video_id: videoId,
-      type: typeof videoId,
-      length: videoId?.length
-    });
+export async function markVideoCompleted(userId: string, courseId: string, videoId: string) {
+  console.log("🔍 markVideoCompleted called with:", { videoId, courseId });
 
-    const { data, error } = await supabase
-      .from('user_progress')
-      .upsert({
-        user_id: userId,
-        video_id: videoId,
-        completed: true,
-        completed_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,video_id'
-      });
+  const payload = {
+    user_id: userId,
+    course_id: courseId,
+    video_id: videoId,
+    completed: true,
+    completed_at: new Date().toISOString(),
+  };
 
-    // Success log after the upsert
-    console.log("✅ markVideoCompleted upsert result:", { data, error });
+  console.log("📦 Final payload to Supabase:", payload);
 
-    if (error) {
-      console.error('Supabase error marking video as completed:', error);
-      throw new Error(`Failed to mark video as completed: ${error.message}`);
-    }
-  } catch (error: any) {
-    console.error('Error in markVideoCompleted:', error);
-    throw error;
+  const { data, error } = await supabase
+    .from("user_progress")
+    .upsert(payload, { onConflict: "user_id,course_id,video_id" }) // ✅ UPSERT instead of insert
+    .select();
+
+  if (error) {
+    console.error("❌ Supabase upsert error in markVideoCompleted:", error);
+    throw new Error(`Failed to mark video as completed: ${error.message}`);
   }
+
+  console.log("✅ Video marked completed successfully:", data);
+  return data;
 }
 
 /**
