@@ -46,10 +46,8 @@ const Video = () => {
         const completed = await isVideoCompleted(user.id, videoUrl);
         setIsCompleted(completed);
         
-        // If already completed, load quizzes
-        if (completed) {
-          await loadQuizzes();
-        }
+        // Always load quizzes regardless of completion status
+        await loadQuizzes();
       }
     };
     
@@ -60,8 +58,8 @@ const Video = () => {
   useEffect(() => {
     if (location.state?.fromCompletion) {
       toast({
-        title: "Video marked completed. Quiz unlocked!",
-        description: "You can now access the quiz below the video.",
+        title: "Video marked completed!",
+        description: "Your progress has been saved successfully.",
       });
     }
   }, [location.state?.fromCompletion, toast]);
@@ -170,7 +168,7 @@ const Video = () => {
 
       toast({
         title: "Video Completed! ✅",
-        description: "Quizzes are now unlocked for this video.",
+        description: "Your progress has been saved successfully.",
       });
 
       setIsCompleted(true);
@@ -220,7 +218,7 @@ const Video = () => {
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Video Progress</h3>
                     <p className="text-muted-foreground">
-                      {isCompleted ? "You've completed this video!" : "Mark this video as completed to unlock quizzes"}
+                      {isCompleted ? "You've completed this video!" : "Mark this video as completed to track your progress"}
                     </p>
                   </div>
                   <Button
@@ -258,14 +256,7 @@ const Video = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {!isCompleted ? (
-                  <div className="text-center py-8">
-                    <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">
-                      Complete the video to unlock quizzes
-                    </p>
-                  </div>
-                ) : loadingQuizzes ? (
+                {loadingQuizzes ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                     <p className="text-muted-foreground">Loading quizzes...</p>
