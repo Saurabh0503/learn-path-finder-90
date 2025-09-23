@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
+import { Video } from "@/lib/api";
+import { upsertVideo } from "@/services/videoService";
 
 // Helper function to get current user
 export async function getCurrentUser() {
@@ -272,4 +274,28 @@ export async function getEnrolledCoursesWithProgress() {
   );
 
   return coursesWithProgress;
+}
+
+/**
+ * Mark video with progress - ensures video exists in database before tracking progress
+ */
+export async function markVideoWithProgress(userId: string, video: Video) {
+  console.log("🎬 markVideoWithProgress called for:", video.id);
+  
+  try {
+    // Step 1: Ensure video exists in database
+    console.log("📦 Step 1: Upserting video to database...");
+    await upsertVideo(video);
+    console.log("✅ Step 1 complete: Video upserted successfully");
+    
+    // Step 2: Mark video as completed for user
+    console.log("📝 Step 2: Marking video as completed...");
+    const result = await markVideoCompleted(video.id);
+    console.log("✅ Step 2 complete: Video marked as completed");
+    
+    return result;
+  } catch (error) {
+    console.error("❌ markVideoWithProgress failed:", error);
+    throw error;
+  }
 }

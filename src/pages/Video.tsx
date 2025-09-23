@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle, Star, MessageCircle, BookOpen, Play, Lock } from "lucide-react";
 import { VideoData } from "@/services/videoService";
-import { markVideoComplete, saveQuizScore } from "@/services/progressService";
-import { markVideoCompleted, getQuizzesByVideo, isVideoCompleted, Quiz } from "@/lib/api";
+import { markVideoComplete, saveQuizScore, markVideoCompleted } from "@/services/progressService";
+import { getQuizzesByVideo, isVideoCompleted, Quiz } from "@/lib/api";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/ui/use-toast";
 import { safeString, safeLowerCase, safeVideoNormalize, videoDefaults } from "@/utils/safeString";
@@ -56,6 +56,16 @@ const Video = () => {
     getCurrentUser();
   }, [videoUrl]);
 
+  // Show toast if redirected from courses page after completion
+  useEffect(() => {
+    if (location.state?.fromCompletion) {
+      toast({
+        title: "Video marked completed. Quiz unlocked!",
+        description: "You can now access the quiz below the video.",
+      });
+    }
+  }, [location.state?.fromCompletion, toast]);
+
   // Load quizzes for the video
   const loadQuizzes = async () => {
     if (!videoUrl) return;
@@ -66,6 +76,7 @@ const Video = () => {
       const learningGoal = location.state?.learningGoal;
       const fetchedQuizzes = await getQuizzesByVideo(videoUrl, searchTerm, learningGoal);
       setQuizzes(fetchedQuizzes);
+      console.log("✅ Quiz unlocked for video:", video?.id || videoId);
     } catch (error: any) {
       console.error('Error loading quizzes:', error);
       
@@ -145,7 +156,7 @@ const Video = () => {
 
     try {
       // Mark video as completed in the user_progress table
-      await markVideoCompleted(currentUser.id, videoUrl);
+      await markVideoCompleted(video?.id || videoId || '');
 
       // Also mark in the existing user_progress table if courseId exists
       if (video?.id && courseId) {

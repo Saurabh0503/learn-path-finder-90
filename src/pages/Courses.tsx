@@ -11,6 +11,7 @@ import { useVideoCache } from "@/contexts/VideoCacheContext";
 import { safeString, safeLowerCase } from "@/utils/safeString";
 import { toast } from "@/components/ui/use-toast";
 import { markVideoCompleted } from "@/services/progressService";
+import { supabase } from "@/lib/supabaseClient";
 
 // 🔑 helper to sanitize YouTube ID
 function extractVideoId(idOrUrl: string | undefined) {
@@ -235,6 +236,18 @@ const Courses = () => {
                             return;
                           }
                           try {
+                            // Get current user
+                            const { data: { user }, error: userError } = await supabase.auth.getUser();
+                            if (userError || !user) {
+                              toast({
+                                title: "Error",
+                                description: "You must be logged in to mark videos as completed.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+
+                            // Mark video as completed using centralized function
                             const { data, error } = await markVideoCompleted(video.id);
                             if (error) {
                               console.error("Error marking completed:", error);
@@ -245,9 +258,30 @@ const Courses = () => {
                               });
                               return;
                             }
+                            
                             // Update local UI state
                             setVideos((prev) => prev.map((p) => (p.id === video.id ? { ...p, completed: true } : p)));
-                            toast({ title: "Marked completed", description: "Quizzes are now available for this video." });
+                            
+                            // Show success toast
+                            toast({ 
+                              title: "Video marked as completed!", 
+                              description: "Redirecting to video page to view unlocked quiz..." 
+                            });
+                            
+                            // Redirect to video page to show unlocked quiz
+                            setTimeout(() => {
+                              navigate(`/video/${video.id}`, {
+                                state: {
+                                  video,
+                                  searchTerm: topic,
+                                  learningGoal: goal,
+                                  courseId: courseId,
+                                  summary: video.summary,
+                                  quiz: video.quiz,
+                                  fromCompletion: true // Flag to show completion toast
+                                }
+                              });
+                            }, 1000); // Small delay to show the toast
                           } catch (err) {
                             console.error(err);
                             toast({

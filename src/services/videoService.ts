@@ -1,4 +1,4 @@
-import { getVideos, getQuizzes } from '../lib/api.js';
+import { getVideos, getQuizzes, Video } from '../lib/api.js';
 import { normalizeTopicPair } from '../utils/normalizeInput.js';
 import { supabase } from "@/lib/supabaseClient";
 import { getCompletedVideoIdsForUser, markVideoCompleted } from "@/services/progressService";
@@ -311,6 +311,35 @@ export async function generateLearningPath(searchTerm: string, learningGoal: str
   } catch (err: any) {
     console.error("generateLearningPath failed:", err.message || err);
     return { status: "error", message: err.message || "Unknown error" };
+  }
+}
+
+/**
+ * Upsert video into videos table to ensure it exists before progress tracking
+ */
+export async function upsertVideo(video: Video): Promise<void> {
+  console.log("📦 Upserting video:", video.id);
+  
+  const { data, error } = await supabase
+    .from("videos")
+    .upsert([{
+      id: video.id,
+      title: video.title,
+      url: video.url,
+      channel: video.channel,
+      thumbnail_url: video.thumbnail,
+      searchTerm: video.searchTerm,
+      learningGoal: video.learningGoal,
+      level: video.level,
+      summary: video.summary,
+      created_at: video.created_at || new Date().toISOString()
+    }], { onConflict: "id" });
+
+  console.log("✅ Upsert video result:", { data, error });
+
+  if (error) {
+    console.error("❌ Failed to upsert video:", error);
+    throw new Error(`Failed to upsert video: ${error.message}`);
   }
 }
 
