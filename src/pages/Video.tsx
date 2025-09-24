@@ -52,35 +52,60 @@ const Video = () => {
     getCurrentUser();
   }, [videoUrl]);
 
-  // Fetch quizzes by videoId
+  // Fetch and normalize quizzes from all sources
   useEffect(() => {
-    if (!videoId) return;
+    const fetchAndNormalizeQuizzes = async () => {
+      let fetchedQuizzes: any[] = [];
+      
+      // Fetch from Supabase if videoId exists
+      if (videoId) {
+        console.log("🎯 Fetching quizzes for videoId:", videoId);
+        const { data, error } = await supabase
+          .from("quizzes")
+          .select("*")
+          .eq("video_id", videoId);
 
-    const fetchQuizzes = async () => {
-      console.log("🎯 Fetching quizzes for videoId:", videoId);
-      const { data, error } = await supabase
-        .from("quizzes")
-        .select("*")
-        .eq("video_id", videoId);
-
-      if (error) {
-        console.error("❌ Error fetching quizzes:", error);
-        return;
+        if (error) {
+          console.error("❌ Error fetching quizzes:", error);
+        } else {
+          console.log("📦 Raw quizzes from DB:", data);
+          fetchedQuizzes = data || [];
+        }
       }
 
-      console.log("📦 Raw quizzes from DB:", data);
+      // Combine all quiz sources
+      const allQuizSources = [
+        ...fetchedQuizzes,
+        ...(video?.quizzes || []),
+        ...(quiz || [])
+      ];
 
-      // Flatten nested questions arrays
-      const normalized = (data || []).flatMap((row: any) =>
-        Array.isArray(row.questions) ? row.questions : []
-      ).filter(q => q && q.question && q.answer);
+      const processed = allQuizSources.flatMap((q: any) => {
+        // ✅ Fix: Parse the stringified JSON before normalizing
+        if (typeof q.questions === "string") {
+          try {
+            const parsed = JSON.parse(q.questions);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (err) {
+            console.error("❌ Failed to parse quiz questions JSON:", err, q.questions);
+            return [];
+          }
+        }
 
-      console.log("✅ Normalized quizzes:", normalized);
-      setQuizzes(normalized);
+        // ✅ Handle JSONB array directly
+        if (Array.isArray(q.questions)) {
+          return q.questions;
+        }
+
+        return [];
+      }).filter(q => q && q.question && q.answer);
+
+      console.log("✅ Normalized quizzes:", processed);
+      setQuizzes(processed);
     };
 
-    fetchQuizzes();
-  }, [videoId]);
+    fetchAndNormalizeQuizzes();
+  }, [videoId, video, quiz]);
 
   // Show toast if redirected from courses page after completion
   useEffect(() => {
@@ -252,22 +277,27 @@ const Video = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {quizzes.length > 0 ? (
-                  <div className="mt-6 space-y-2">
-                    <h4 className="font-semibold">Quizzes</h4>
-                    {quizzes.map((q, idx) => (
-                      <Collapsible key={idx}>
-                        <CollapsibleTrigger className="py-2 px-3 border rounded w-full text-left">
-                          {q.question}
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="p-3 bg-gray-50 rounded">
-                          {q.answer}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    ))}
-                  </div>
+                <h2 className="text-xl font-bold mb-4">📘 Quizzes</h2>
+
+                {quizzes.length === 0 ? (
+                  <p>No quizzes available for this video.</p>
                 ) : (
-                  <p className="mt-6 text-sm text-gray-500">No quizzes available for this video.</p>
+                  quizzes.map((q, idx) => (
+                    <Card key={idx} className="mb-3 shadow-md">
+                      <CardContent>
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-between">
+                              {q.question}
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="mt-2 text-sm text-gray-700">
+                            <p>{q.answer}</p>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </CardContent>
+                    </Card>
+                  ))
                 )}
               </CardContent>
             </Card>
