@@ -19,7 +19,7 @@ const Video = () => {
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
   const [isCompleted, setIsCompleted] = useState(false);
   const [completingVideo, setCompletingVideo] = useState(false);
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { toast } = useToast();
@@ -52,62 +52,34 @@ const Video = () => {
     getCurrentUser();
   }, [videoUrl]);
 
-  // Load quizzes directly from Supabase using videoId
+  // Fetch quizzes by videoId
   useEffect(() => {
-    const loadQuizzes = async () => {
-      if (!videoId) return;
-      
-      setLoadingQuizzes(true);
-      try {
-        // Fetch quizzes from Supabase using videoId
-        const { data, error } = await supabase
-          .from("quizzes")
-          .select("*")
-          .eq("video_id", videoId);
-        
-        // Debug log the fetch results
-        console.log("🐛 Supabase quiz fetch:", { videoId, data, error });
-        
-        if (error) {
-          console.error("Error fetching quizzes:", error);
-          setQuizzes([]);
-          return;
-        }
-        
-        // Normalize quiz data by flattening questions arrays
-        const normalizedQuizzes = (data || [])
-          .flatMap((quiz: any) => {
-            // If quiz has questions array, flatten it
-            if (Array.isArray(quiz.questions)) {
-              return quiz.questions.map((q: any) => ({
-                question: q.question,
-                answer: q.answer
-              }));
-            }
-            // If quiz itself has question/answer, use it directly
-            if (quiz.question && quiz.answer) {
-              return [{
-                question: quiz.question,
-                answer: quiz.answer
-              }];
-            }
-            return [];
-          })
-          .filter(q => q && q.question && q.answer); // Filter out invalid entries
-        
-        // Debug log normalized results
-        console.log("✅ Normalized quizzes:", normalizedQuizzes);
-        
-        setQuizzes(normalizedQuizzes);
-      } catch (error) {
-        console.error("Error loading quizzes:", error);
-        setQuizzes([]);
-      } finally {
-        setLoadingQuizzes(false);
+    if (!videoId) return;
+
+    const fetchQuizzes = async () => {
+      console.log("🎯 Fetching quizzes for videoId:", videoId);
+      const { data, error } = await supabase
+        .from("quizzes")
+        .select("*")
+        .eq("video_id", videoId);
+
+      if (error) {
+        console.error("❌ Error fetching quizzes:", error);
+        return;
       }
+
+      console.log("📦 Raw quizzes from DB:", data);
+
+      // Flatten nested questions arrays
+      const normalized = (data || []).flatMap((row: any) =>
+        Array.isArray(row.questions) ? row.questions : []
+      ).filter(q => q && q.question && q.answer);
+
+      console.log("✅ Normalized quizzes:", normalized);
+      setQuizzes(normalized);
     };
-    
-    loadQuizzes();
+
+    fetchQuizzes();
   }, [videoId]);
 
   // Show toast if redirected from courses page after completion
@@ -280,31 +252,22 @@ const Video = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {loadingQuizzes ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Loading quizzes...</p>
+                {quizzes.length > 0 ? (
+                  <div className="mt-6 space-y-2">
+                    <h4 className="font-semibold">Quizzes</h4>
+                    {quizzes.map((q, idx) => (
+                      <Collapsible key={idx}>
+                        <CollapsibleTrigger className="py-2 px-3 border rounded w-full text-left">
+                          {q.question}
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="p-3 bg-gray-50 rounded">
+                          {q.answer}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))}
                   </div>
                 ) : (
-                  <div>
-                    <h2 className="text-lg font-semibold mt-6 mb-2">📘 Quiz</h2>
-                    {quizzes.length === 0 ? (
-                      <p className="text-muted-foreground">No quizzes available for this video.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {quizzes.map((quiz, index) => (
-                          <Collapsible key={index}>
-                            <CollapsibleTrigger className="font-medium text-left w-full p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                              {quiz.question}
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="text-sm text-muted-foreground p-3 border-l-2 border-primary/20 ml-3 mt-2">
-                              {quiz.answer}
-                            </CollapsibleContent>
-                          </Collapsible>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <p className="mt-6 text-sm text-gray-500">No quizzes available for this video.</p>
                 )}
               </CardContent>
             </Card>
