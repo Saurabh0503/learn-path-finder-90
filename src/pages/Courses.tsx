@@ -10,7 +10,7 @@ import { fetchVideos, VideoData } from "@/services/videoService";
 import { useVideoCache } from "@/contexts/VideoCacheContext";
 import { safeString, safeLowerCase } from "@/utils/safeString";
 import { toast } from "@/components/ui/use-toast";
-import { markVideoCompleted } from "@/services/progressService";
+import { markVideoCompleted } from "@/lib/api";
 import { supabase } from "@/lib/supabaseClient";
 
 // 🔑 helper to sanitize YouTube ID
@@ -247,9 +247,37 @@ const Courses = () => {
                               return;
                             }
 
+                            // Add debugging log before calling
+                            console.log("📌 Marking course complete:", {
+                              userId: user.id,
+                              courseId: courseId,  // should match DB
+                              videoId: video.id,
+                            });
+
+                            // Ensure course exists in database before marking progress
+                            if (courseId && topic && goal) {
+                              const { error: courseError } = await supabase
+                                .from("courses")
+                                .upsert({
+                                  id: courseId,
+                                  title: `${topic} - ${goal}`,
+                                  description: `Learning path for ${topic} with goal: ${goal}`,
+                                  created_at: new Date().toISOString()
+                                }, {
+                                  onConflict: "id",
+                                  ignoreDuplicates: true
+                                });
+
+                              if (courseError) {
+                                console.error("Error upserting course:", courseError);
+                              }
+                            }
+
                             // Mark video as completed using centralized function
-                            const { data, error } = await markVideoCompleted(video.id, courseId);
-                            if (error) {
+                            try {
+                              const data = await markVideoCompleted(user.id, courseId!, video.id);
+                              console.log("✅ Video marked completed successfully:", data);
+                            } catch (error: any) {
                               console.error("Error marking completed:", error);
                               toast({
                                 title: "Error",
