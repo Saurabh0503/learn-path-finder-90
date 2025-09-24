@@ -46,14 +46,69 @@ const Video = () => {
       if (user && videoUrl) {
         const completed = await isVideoCompleted(user.id, videoUrl);
         setIsCompleted(completed);
-        
-        // Always load quizzes regardless of completion status
-        await loadQuizzes();
       }
     };
     
     getCurrentUser();
   }, [videoUrl]);
+
+  // Load quizzes directly from Supabase using videoId
+  useEffect(() => {
+    const loadQuizzes = async () => {
+      if (!videoId) return;
+      
+      setLoadingQuizzes(true);
+      try {
+        // Fetch quizzes from Supabase using videoId
+        const { data, error } = await supabase
+          .from("quizzes")
+          .select("*")
+          .eq("video_id", videoId);
+        
+        // Debug log the fetch results
+        console.log("🐛 Supabase quiz fetch:", { videoId, data, error });
+        
+        if (error) {
+          console.error("Error fetching quizzes:", error);
+          setQuizzes([]);
+          return;
+        }
+        
+        // Normalize quiz data by flattening questions arrays
+        const normalizedQuizzes = (data || [])
+          .flatMap((quiz: any) => {
+            // If quiz has questions array, flatten it
+            if (Array.isArray(quiz.questions)) {
+              return quiz.questions.map((q: any) => ({
+                question: q.question,
+                answer: q.answer
+              }));
+            }
+            // If quiz itself has question/answer, use it directly
+            if (quiz.question && quiz.answer) {
+              return [{
+                question: quiz.question,
+                answer: quiz.answer
+              }];
+            }
+            return [];
+          })
+          .filter(q => q && q.question && q.answer); // Filter out invalid entries
+        
+        // Debug log normalized results
+        console.log("✅ Normalized quizzes:", normalizedQuizzes);
+        
+        setQuizzes(normalizedQuizzes);
+      } catch (error) {
+        console.error("Error loading quizzes:", error);
+        setQuizzes([]);
+      } finally {
+        setLoadingQuizzes(false);
+      }
+    };
+    
+    loadQuizzes();
+  }, [videoId]);
 
   // Show toast if redirected from courses page after completion
   useEffect(() => {
@@ -64,47 +119,6 @@ const Video = () => {
       });
     }
   }, [location.state?.fromCompletion, toast]);
-
-  // Load quizzes for the video
-  const loadQuizzes = async () => {
-    if (!videoUrl) return;
-    
-    setLoadingQuizzes(true);
-    try {
-      const searchTerm = location.state?.searchTerm;
-      const learningGoal = location.state?.learningGoal;
-      const fetchedQuizzes = await getQuizzesByVideo(videoUrl, searchTerm, learningGoal);
-      
-      // Debug log raw fetched quizzes
-      console.log("🐛 Raw fetchedQuizzes:", fetchedQuizzes);
-      
-      // Normalize quiz data by flattening the questions array
-      const normalizedQuizzes = (fetchedQuizzes || [])
-        .flatMap((q: any) => (Array.isArray(q.questions) ? q.questions : q))
-        .filter(q => q && q.question && q.answer);
-      
-      // Debug log normalized results
-      console.log("✅ Normalized quizzes:", normalizedQuizzes);
-      
-      setQuizzes(normalizedQuizzes);
-      console.log("✅ Quiz unlocked for video:", video?.id || videoId);
-    } catch (error: any) {
-      console.error('Error loading quizzes:', error);
-      
-      // Show user-friendly error message
-      const errorMessage = error.message?.includes('schema') 
-        ? "Database schema mismatch detected. Please contact support."
-        : "Failed to load quizzes. Please try again.";
-      
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingQuizzes(false);
-    }
-  };
 
   if (!video) {
     return (
@@ -185,9 +199,6 @@ const Video = () => {
       });
 
       setIsCompleted(true);
-      
-      // Load quizzes after marking as complete
-      await loadQuizzes();
     } catch (error) {
       console.error("Error marking video complete:", error);
       toast({
