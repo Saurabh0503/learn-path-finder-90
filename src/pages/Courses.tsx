@@ -2,12 +2,13 @@ console.log("🔥 Courses.tsx file loaded");
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllCourses } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, Clock, Users, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabaseClient";
+
 
 const Courses = () => {
   console.log("🎬 Courses page mounted");
@@ -20,7 +21,15 @@ const Courses = () => {
     console.log("➡️ Loading all courses");
     setLoading(true);
     try {
-      const courses = await getAllCourses();
+      const { data: courses, error } = await supabase
+        .from("courses")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
       console.log("📦 Courses loaded:", courses?.length || 0);
       setCourses(courses || []);
       
