@@ -10,7 +10,7 @@ import { fetchVideos, VideoData } from "@/services/videoService";
 import { useVideoCache } from "@/contexts/VideoCacheContext";
 import { safeString, safeLowerCase } from "@/utils/safeString";
 import { toast } from "@/components/ui/use-toast";
-import { markVideoCompleted } from "@/lib/api";
+import { markVideoCompleted, getVideosForCourse } from "@/lib/api";
 import { supabase } from "@/lib/supabaseClient";
 
 // 🔑 helper to sanitize YouTube ID
@@ -36,37 +36,40 @@ const Courses = () => {
   const courseId = topic && goal ? `${safeLowerCase(topic).replace(/\s+/g, '-')}-${safeLowerCase(goal)}` : null;
 
   const loadVideos = async (forceRefresh = false) => {
-    if (!topic || !goal) {
+    if (!courseId) {
       navigate("/");
       return;
     }
 
     // Check cache first (unless forcing refresh)
-    if (!forceRefresh) {
+    if (!forceRefresh && topic && goal) {
       const cachedVideos = getCachedVideos(topic, goal);
       if (cachedVideos) {
         setVideos(cachedVideos);
+        console.log("✅ Rendering videos for course:", courseId, cachedVideos);
         return;
       }
     }
 
-    console.log("➡️ loadVideos called with:", { topic, goal, forceRefresh });
+    console.log("➡️ loadVideos called with courseId:", courseId, "forceRefresh:", forceRefresh);
     setLoading(true);
     try {
-      console.log("📡 About to call fetchVideos with:", { topic, goal, forceRefresh });
-      const response = await fetchVideos({ topic, goal });
-      console.log("✅ fetchVideos result returned to Courses:", response);
-      console.log("✅ Data received from super-task:", response);
-      setVideos(response.videos);
-      // Cache the fetched videos
-      setCachedVideos(topic, goal, response.videos);
+      // Use new course-based API instead of topic/goal search
+      const courseVideos = await getVideosForCourse(courseId);
+      console.log("✅ Rendering videos for course:", courseId, courseVideos);
+      setVideos(courseVideos);
+      
+      // Cache the fetched videos (maintain compatibility with existing cache)
+      if (topic && goal) {
+        setCachedVideos(topic, goal, courseVideos);
+      }
     } catch (error) {
       toast({
-        title: "Error Loading Courses",
-        description: "Failed to fetch learning content. Please try again.",
+        title: "Error Loading Course Videos",
+        description: "Failed to fetch course content. Please try again.",
         variant: "destructive",
       });
-      console.error("Error fetching videos:", error);
+      console.error("Error fetching course videos:", error);
     } finally {
       setLoading(false);
     }
@@ -81,9 +84,11 @@ const Courses = () => {
   };
 
   useEffect(() => {
-    console.log("🔄 useEffect triggered with topic:", topic, "goal:", goal);
-    loadVideos();
-  }, [topic, goal, navigate]);
+    console.log("🔄 useEffect triggered with courseId:", courseId);
+    if (courseId) {
+      loadVideos();
+    }
+  }, [courseId, navigate]);
 
   // 🔑 use sanitized ID here
   const handleWatchVideo = (video: VideoData) => {
