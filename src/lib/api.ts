@@ -306,46 +306,6 @@ export async function removeRequestedTopic(id: string): Promise<void> {
 }
 
 /**
- * Get all courses (simplified - no filtering)
- */
-export async function getAllCourses() {
-  console.log("🎯 Fetching all courses");
-
-  const { data, error } = await supabase
-    .from("courses")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("❌ Error fetching courses:", error);
-    return [];
-  }
-
-  console.log("📦 Fetched courses:", data);
-  return data || [];
-}
-
-/**
- * Get videos for a specific course from course_videos join table
- */
-export async function getVideosForCourse(courseId: string) {
-  console.log("🎯 Fetching videos for courseId:", courseId);
-
-  const { data, error } = await supabase
-    .from("course_videos")
-    .select("videos(*)")
-    .eq("course_id", courseId);
-
-  if (error) {
-    console.error("❌ Error fetching course videos:", error);
-    return [];
-  }
-
-  console.log("📦 Fetched videos:", data);
-  return data?.map((row: any) => row.videos).filter(Boolean) || [];
-}
-
-/**
  * Mark video as completed in user_progress table
  */
 export async function markVideoCompleted(userId: string, courseId: string, videoId: string) {

@@ -8,7 +8,6 @@ import Navigation from "./components/Navigation";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import Courses from "./pages/Courses";
-import Course from "./pages/Course";
 import Video from "./pages/Video";
 import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
@@ -30,7 +29,6 @@ const App = () => (
             <Route path="/" element={<Home />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/courses" element={<Courses />} />
-            <Route path="/course/:courseId" element={<Course />} />
             <Route path="/video/:videoId" element={
               <ProtectedRoute>
                 <Video />
