@@ -1,45 +1,72 @@
 console.log("🔥 Courses.tsx file loaded");
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Clock, Users, RefreshCw, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, Star, Users, RefreshCw, Loader2, Play } from "lucide-react";
+import { fetchVideos, VideoData } from "@/services/videoService";
+import { useVideoCache } from "@/contexts/VideoCacheContext";
+import { safeString, safeLowerCase } from "@/utils/safeString";
 import { toast } from "@/components/ui/use-toast";
+import { markVideoCompleted } from "@/lib/api";
 import { supabase } from "@/lib/supabaseClient";
 
+// 🔑 helper to sanitize YouTube ID
+function extractVideoId(idOrUrl: string | undefined) {
+  if (!idOrUrl) return "";
+  const match = idOrUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+  return match ? match[1] : idOrUrl;
+}
 
 const Courses = () => {
   console.log("🎬 Courses page mounted");
   
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [courses, setCourses] = useState<any[]>([]);
+  const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(false);
+  const { getCachedVideos, setCachedVideos, clearCache } = useVideoCache();
+  
+  const topic = searchParams.get("topic");
+  const goal = searchParams.get("goal");
+  
+  // Generate a courseId based on topic and goal for progress tracking
+  const courseId = topic && goal ? `${safeLowerCase(topic).replace(/\s+/g, '-')}-${safeLowerCase(goal)}` : null;
 
-  const loadCourses = async (forceRefresh = false) => {
-    console.log("➡️ Loading all courses");
+  const loadVideos = async (forceRefresh = false) => {
+    if (!topic || !goal) {
+      navigate("/");
+      return;
+    }
+
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cachedVideos = getCachedVideos(topic, goal);
+      if (cachedVideos) {
+        setVideos(cachedVideos);
+        return;
+      }
+    }
+
+    console.log("➡️ loadVideos called with:", { topic, goal, forceRefresh });
     setLoading(true);
     try {
-      const { data: courses, error } = await supabase
-        .from("courses")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      console.log("📦 Courses loaded:", courses?.length || 0);
-      setCourses(courses || []);
-      
+      console.log("📡 About to call fetchVideos with:", { topic, goal, forceRefresh });
+      const response = await fetchVideos({ topic, goal });
+      console.log("✅ fetchVideos result returned to Courses:", response);
+      console.log("✅ Data received from super-task:", response);
+      setVideos(response.videos);
+      // Cache the fetched videos
+      setCachedVideos(topic, goal, response.videos);
     } catch (error) {
       toast({
         title: "Error Loading Courses",
-        description: "Failed to fetch courses. Please try again.",
+        description: "Failed to fetch learning content. Please try again.",
         variant: "destructive",
       });
-      console.error("Error fetching courses:", error);
+      console.error("Error fetching videos:", error);
     } finally {
       setLoading(false);
     }
@@ -47,22 +74,33 @@ const Courses = () => {
 
 
   const handleRefresh = () => {
-    loadCourses(true);
+    if (topic && goal) {
+      clearCache(topic, goal);
+      loadVideos(true);
+    }
   };
 
   useEffect(() => {
-    loadCourses();
-  }, []);
+    console.log("🔄 useEffect triggered with topic:", topic, "goal:", goal);
+    loadVideos();
+  }, [topic, goal, navigate]);
 
-  // Navigate to individual course page (we'll create this route later)
-  const handleViewCourse = (course: any) => {
-    navigate(`/course/${course.id}`, {
-      state: { course }
+  // 🔑 use sanitized ID here
+  const handleWatchVideo = (video: VideoData) => {
+    const cleanId = extractVideoId(video.id);
+
+    navigate(`/video/${cleanId}`, {
+      state: {
+        video,
+        summary: video.summary,
+        quiz: video.quiz,
+        courseId: courseId, // Pass courseId for progress tracking
+      },
     });
   };
 
   const getDifficultyColor = (difficulty?: string | null) => {
-    const safeDifficulty = (difficulty || '').toLowerCase();
+    const safeDifficulty = safeLowerCase(difficulty);
     switch (safeDifficulty) {
       case "beginner":
       case "easy":
@@ -86,7 +124,7 @@ const Courses = () => {
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
               <h2 className="text-xl font-semibold mb-2">Loading Learning Content</h2>
-              <p className="text-muted-foreground">Loading courses...</p>
+              <p className="text-muted-foreground">Curating the best videos for {topic}...</p>
             </div>
           </div>
         </div>
@@ -117,85 +155,180 @@ const Courses = () => {
               Refresh
             </Button>
           </div>
-          <h1 className="text-4xl font-bold mb-2">All Courses</h1>
+          <h1 className="text-4xl font-bold mb-2">{topic} Courses</h1>
           <p className="text-lg text-muted-foreground mb-4">
-            Curated learning paths for various topics
+            {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
           </p>
           <Badge variant="outline" className="text-sm">
-            {courses.length} course{courses.length !== 1 ? "s" : ""} found
+            {videos.length} course{videos.length !== 1 ? "s" : ""} found
           </Badge>
         </div>
 
         {/* Videos Grid */}
-        {courses.length === 0 ? (
+        {videos.length === 0 ? (
           <div className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2">⚠️ No courses found</h3>
+            <h3 className="text-xl font-semibold mb-2">Learning Path Being Prepared</h3>
             <p className="text-muted-foreground mb-4">
-              No courses available at the moment. Please add them to the courses table in Supabase.
+              We're curating the best {topic} content for {goal} level learners.
             </p>
             <p className="text-sm text-muted-foreground">
-              Check back later or try different search criteria.
+              This topic has been added to our generation queue. Please check back soon!
             </p>
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {courses.map((course) => {
+            {videos.map((video) => {
+              const isCompleted = !!video.completed;
               return (
                 <Card
-                  key={course.id}
-                  className="border-0 shadow-card hover:shadow-elevation transition-smooth group overflow-hidden cursor-pointer"
-                  onClick={() => handleViewCourse(course)}
+                  key={video.id}
+                  className="border-0 shadow-card hover:shadow-elevation transition-smooth group overflow-hidden"
                 >
                   <div className="relative">
                     <img
-                      src={course.thumbnail || '/api/placeholder/300/200'}
-                      alt={course.title}
+                      src={video.thumbnail}
+                      alt={video.title}
                       className="w-full h-48 object-cover group-hover:scale-105 transition-smooth"
                     />
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-smooth flex items-center justify-center">
-                      <Button size="sm" className="bg-background/90 text-foreground hover:bg-background">
-                        <BookOpen className="h-4 w-4 mr-2" />
-                        View Course
+                      <Button size="sm" className="bg-background/90 text-foreground hover:bg-background" onClick={() => handleWatchVideo(video)}>
+                        <Play className="h-4 w-4 mr-2" />
+                        Watch Now
                       </Button>
                     </div>
                     <div className="absolute top-3 right-3">
-                      <Badge className={getDifficultyColor(course.level)}>
-                        {course.level || 'Course'}
+                      <Badge className={getDifficultyColor(video.difficulty)}>
+                        {video.difficulty}
                       </Badge>
                     </div>
                   </div>
 
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-smooth">
-                      {course.title}
+                      {video.title}
                     </CardTitle>
                   </CardHeader>
 
                   <CardContent className="pt-0">
                     <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
                       <span className="flex items-center">
-                        <Users className="h-4 w-4 mr-1" />
-                        {course.instructor || 'AI Instructor'}
+                        <Clock className="h-4 w-4 mr-1" />
+                        {video.channel}
                       </span>
                       <div className="flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
-                        <span>{course.duration_hours ? `${course.duration_hours}h` : 'Self-paced'}</span>
+                        <Star className="h-4 w-4 mr-1 text-warning fill-warning" />
+                        <span>#{video.rank}</span>
                       </div>
                     </div>
 
-                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                      {course.description}
-                    </p>
+                    <div className="space-y-2">
+                      <Button onClick={() => handleWatchVideo(video)} className="w-full bg-gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-bounce">
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Learning
+                      </Button>
+                      
+                      <Button
+                        variant={isCompleted ? "default" : "outline"}
+                        className={`w-full ${isCompleted ? "bg-green-600 hover:bg-green-700" : ""}`}
+                        onClick={async () => {
+                          if (isCompleted) {
+                            toast({ title: "Already completed", description: "This video is already marked completed." });
+                            return;
+                          }
+                          try {
+                            // Get current user
+                            const { data: { user }, error: userError } = await supabase.auth.getUser();
+                            if (userError || !user) {
+                              toast({
+                                title: "Error",
+                                description: "You must be logged in to mark videos as completed.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
 
-                    <Button className="w-full bg-gradient-primary shadow-button hover:shadow-lg hover:scale-[1.02] transition-bounce">
-                      <BookOpen className="h-4 w-4 mr-2" />
-                      Start Course
-                    </Button>
+                            // Add debugging log before calling
+                            console.log("📌 Marking course complete:", {
+                              userId: user.id,
+                              courseId: courseId,  // should match DB
+                              videoId: video.id,
+                            });
+
+                            // Ensure course exists in database before marking progress
+                            if (courseId && topic && goal) {
+                              const { error: courseError } = await supabase
+                                .from("courses")
+                                .upsert({
+                                  id: courseId,
+                                  title: `${topic} - ${goal}`,
+                                  description: `Learning path for ${topic} with goal: ${goal}`,
+                                  created_at: new Date().toISOString()
+                                }, {
+                                  onConflict: "id",
+                                  ignoreDuplicates: true
+                                });
+
+                              if (courseError) {
+                                console.error("Error upserting course:", courseError);
+                              }
+                            }
+
+                            // Mark video as completed using centralized function
+                            try {
+                              const data = await markVideoCompleted(user.id, courseId!, video.id);
+                              console.log("✅ Video marked completed successfully:", data);
+                            } catch (error: any) {
+                              console.error("Error marking completed:", error);
+                              toast({
+                                title: "Error",
+                                description: error.message || "Failed to mark video as completed.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            // Update local UI state
+                            setVideos((prev) => prev.map((p) => (p.id === video.id ? { ...p, completed: true } : p)));
+                            
+                            // Show success toast
+                            toast({ 
+                              title: "Video marked as completed!", 
+                              description: "Redirecting to video page..." 
+                            });
+                            
+                            // Redirect to video page to show unlocked quiz
+                            setTimeout(() => {
+                              navigate(`/video/${video.id}`, {
+                                state: {
+                                  video,
+                                  searchTerm: topic,
+                                  learningGoal: goal,
+                                  courseId: courseId,
+                                  summary: video.summary,
+                                  quiz: video.quiz,
+                                  fromCompletion: true // Flag to show completion toast
+                                }
+                              });
+                            }, 1000); // Small delay to show the toast
+                          } catch (err) {
+                            console.error(err);
+                            toast({
+                              title: "Error",
+                              description: "Failed to mark completed.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        {isCompleted ? "Completed ✅" : "Mark as completed"}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );
             })}
           </div>
+        )}
       </div>
     </div>
   );

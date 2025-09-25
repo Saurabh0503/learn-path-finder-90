@@ -305,30 +305,6 @@ export async function removeRequestedTopic(id: string): Promise<void> {
   }
 }
 
-
-/**
- * Get videos for a specific course from course_videos join table
- */
-export async function getVideosForCourse(courseId: string) {
-  console.log("🎯 Fetching videos for courseId:", courseId);
-
-  const { data, error } = await supabase
-    .from("course_videos")
-    .select(`
-      video_id,
-      videos (*)
-    `)
-    .eq("course_id", courseId);
-
-  if (error) {
-    console.error("❌ Error fetching course videos:", error);
-    return [];
-  }
-
-  console.log("📦 Raw course videos:", data);
-  return data.map((row: any) => row.videos);
-}
-
 /**
  * Mark video as completed in user_progress table
  */
