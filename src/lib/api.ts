@@ -305,46 +305,6 @@ export async function removeRequestedTopic(id: string): Promise<void> {
   }
 }
 
-/**
- * Get courses filtered by topic and goal
- */
-export async function getCoursesByTopicAndGoal(topic: string, goal: string) {
-  console.log("🎯 Fetching courses for topic:", topic, "goal:", goal);
-
-  const { data, error } = await supabase
-    .from("courses")
-    .select("*")
-    .ilike("topic", `%${topic}%`)
-    .ilike("goal", `%${goal}%`);
-
-  if (error) {
-    console.error("❌ Error fetching courses:", error);
-    return [];
-  }
-
-  console.log("📦 Raw courses from DB:", data);
-  return data || [];
-}
-
-/**
- * Get all courses (fallback when no topic/goal specified)
- */
-export async function getAllCourses() {
-  console.log("🎯 Fetching all courses");
-
-  const { data, error } = await supabase
-    .from("courses")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("❌ Error fetching all courses:", error);
-    return [];
-  }
-
-  console.log("📦 All courses from DB:", data);
-  return data || [];
-}
 
 /**
  * Get videos for a specific course from course_videos join table
