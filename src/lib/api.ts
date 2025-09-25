@@ -306,28 +306,7 @@ export async function removeRequestedTopic(id: string): Promise<void> {
 }
 
 /**
- * Get courses filtered by topic and goal
- */
-export async function getCoursesByTopicAndGoal(topic: string, goal: string) {
-  console.log("🎯 Fetching courses for topic:", topic, "goal:", goal);
-
-  const { data, error } = await supabase
-    .from("courses")
-    .select("*")
-    .ilike("topic", `%${topic}%`)
-    .ilike("goal", `%${goal}%`);
-
-  if (error) {
-    console.error("❌ Error fetching courses:", error);
-    return [];
-  }
-
-  console.log("📦 Raw courses from DB:", data);
-  return data || [];
-}
-
-/**
- * Get all courses (fallback when no topic/goal specified)
+ * Get all courses (simplified - no filtering)
  */
 export async function getAllCourses() {
   console.log("🎯 Fetching all courses");
@@ -338,11 +317,11 @@ export async function getAllCourses() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("❌ Error fetching all courses:", error);
+    console.error("❌ Error fetching courses:", error);
     return [];
   }
 
-  console.log("📦 All courses from DB:", data);
+  console.log("📦 Fetched courses:", data);
   return data || [];
 }
 
@@ -354,10 +333,7 @@ export async function getVideosForCourse(courseId: string) {
 
   const { data, error } = await supabase
     .from("course_videos")
-    .select(`
-      video_id,
-      videos (*)
-    `)
+    .select("videos(*)")
     .eq("course_id", courseId);
 
   if (error) {
@@ -365,8 +341,8 @@ export async function getVideosForCourse(courseId: string) {
     return [];
   }
 
-  console.log("📦 Raw course videos:", data);
-  return data.map((row: any) => row.videos);
+  console.log("📦 Fetched videos:", data);
+  return data?.map((row: any) => row.videos).filter(Boolean) || [];
 }
 
 /**

@@ -1,66 +1,28 @@
 console.log("🔥 Courses.tsx file loaded");
 
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { getAllCourses } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, BookOpen, Clock, Star, Users, RefreshCw, Loader2, Play } from "lucide-react";
-import { fetchVideos, VideoData } from "@/services/videoService";
-import { useVideoCache } from "@/contexts/VideoCacheContext";
-import { safeString, safeLowerCase } from "@/utils/safeString";
+import { BookOpen, Clock, Users, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { markVideoCompleted, getCoursesByTopicAndGoal, getAllCourses } from "@/lib/api";
-import { supabase } from "@/lib/supabaseClient";
-
-// 🔑 helper to sanitize YouTube ID
-function extractVideoId(idOrUrl: string | undefined) {
-  if (!idOrUrl) return "";
-  const match = idOrUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-  return match ? match[1] : idOrUrl;
-}
 
 const Courses = () => {
   console.log("🎬 Courses page mounted");
   
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const { getCachedVideos, setCachedVideos, clearCache } = useVideoCache();
-  
-  const topic = searchParams.get("topic");
-  const goal = searchParams.get("goal");
-  
-  // Generate a courseId based on topic and goal for progress tracking
-  const courseId = topic && goal ? `${safeLowerCase(topic).replace(/\s+/g, '-')}-${safeLowerCase(goal)}` : null;
 
   const loadCourses = async (forceRefresh = false) => {
-    console.log("➡️ loadCourses called with topic:", topic, "goal:", goal, "forceRefresh:", forceRefresh);
+    console.log("➡️ Loading all courses");
     setLoading(true);
     try {
-      let fetchedCourses = [];
-      
-      if (topic && goal) {
-        // Fetch courses filtered by topic and goal
-        fetchedCourses = await getCoursesByTopicAndGoal(topic, goal);
-        console.log("📦 Courses returned from Supabase for topic/goal:", { topic, goal, courses: fetchedCourses });
-      } else {
-        // Fallback: get all courses
-        fetchedCourses = await getAllCourses();
-        console.log("📦 All courses returned from Supabase:", fetchedCourses);
-      }
-      
-      setCourses(fetchedCourses);
-      
-      // Show fallback message if no courses found
-      if (fetchedCourses.length === 0 && topic && goal) {
-        toast({
-          title: "⚠️ No curated courses found",
-          description: `No courses found for ${topic} ${goal}. Please add them to the courses table in Supabase.`,
-          variant: "default",
-        });
-      }
+      const courses = await getAllCourses();
+      console.log("📦 Courses loaded:", courses?.length || 0);
+      setCourses(courses || []);
       
     } catch (error) {
       toast({
@@ -80,9 +42,8 @@ const Courses = () => {
   };
 
   useEffect(() => {
-    console.log("🔄 useEffect triggered with topic:", topic, "goal:", goal);
     loadCourses();
-  }, [topic, goal]);
+  }, []);
 
   // Navigate to individual course page (we'll create this route later)
   const handleViewCourse = (course: any) => {
@@ -92,7 +53,7 @@ const Courses = () => {
   };
 
   const getDifficultyColor = (difficulty?: string | null) => {
-    const safeDifficulty = safeLowerCase(difficulty);
+    const safeDifficulty = (difficulty || '').toLowerCase();
     switch (safeDifficulty) {
       case "beginner":
       case "easy":
@@ -116,7 +77,7 @@ const Courses = () => {
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
               <h2 className="text-xl font-semibold mb-2">Loading Learning Content</h2>
-              <p className="text-muted-foreground">Curating the best videos for {topic}...</p>
+              <p className="text-muted-foreground">Loading courses...</p>
             </div>
           </div>
         </div>
@@ -147,9 +108,9 @@ const Courses = () => {
               Refresh
             </Button>
           </div>
-          <h1 className="text-4xl font-bold mb-2">{topic} Courses</h1>
+          <h1 className="text-4xl font-bold mb-2">All Courses</h1>
           <p className="text-lg text-muted-foreground mb-4">
-            {goal?.charAt(0).toUpperCase() + goal?.slice(1)} level learning path
+            Curated learning paths for various topics
           </p>
           <Badge variant="outline" className="text-sm">
             {courses.length} course{courses.length !== 1 ? "s" : ""} found
@@ -159,12 +120,9 @@ const Courses = () => {
         {/* Videos Grid */}
         {courses.length === 0 ? (
           <div className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2">⚠️ No curated courses found</h3>
+            <h3 className="text-xl font-semibold mb-2">⚠️ No courses found</h3>
             <p className="text-muted-foreground mb-4">
-              {topic && goal 
-                ? `No courses found for ${topic} ${goal}. Please add them to the courses table in Supabase.`
-                : "No courses available at the moment."
-              }
+              No courses available at the moment. Please add them to the courses table in Supabase.
             </p>
             <p className="text-sm text-muted-foreground">
               Check back later or try different search criteria.

@@ -131,9 +131,9 @@ const Course = () => {
           ) : videos.length === 0 ? (
             <div className="text-center py-12">
               <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">No videos found</h3>
+              <h3 className="text-xl font-semibold mb-2">⚠️ No videos found for this course</h3>
               <p className="text-muted-foreground">
-                This course doesn't have any videos yet. Please check back later.
+                Please add mappings in course_videos table to link videos to this course.
               </p>
             </div>
           ) : (
